@@ -356,31 +356,31 @@ for (x in 2:length(subURLs[])) {
 ```{r}
 # export data to cvs files
 
-write.csv(df, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/player_contract_2020.csv", row.names=FALSE)
+write.csv(df, "datasets/player_contract_2020.csv", row.names=FALSE)
 
-write.csv(df_2022exp, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/player_exp_2022.csv", row.names=FALSE)
+write.csv(df_2022exp, "datasets/player_exp_2022.csv", row.names=FALSE)
 
-write.csv(df_fg, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_fg_2020.csv", row.names=FALSE)
+write.csv(df_fg, "datasets/stats_fg_2020.csv", row.names=FALSE)
 
-write.csv(df_fumb, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_fumb_2020.csv", row.names=FALSE)
+write.csv(df_fumb, "datasets/stats_fumb_2020.csv", row.names=FALSE)
 
-write.csv(df_int, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_int_2020.csv", row.names=FALSE)
+write.csv(df_int, "datasets/stats_int_2020.csv", row.names=FALSE)
 
-write.csv(df_ko, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_ko_2020.csv", row.names=FALSE)
+write.csv(df_ko, "datasets/stats_ko_2020.csv", row.names=FALSE)
 
-write.csv(df_kor, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_kor_2020.csv", row.names=FALSE)
+write.csv(df_kor, "datasets/stats_kor_2020.csv", row.names=FALSE)
 
-write.csv(df_pass, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_pass_2020.csv", row.names=FALSE)
+write.csv(df_pass, "datasets/stats_pass_2020.csv", row.names=FALSE)
 
-write.csv(df_pr, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_pr_2020.csv", row.names=FALSE)
+write.csv(df_pr, "datasets/stats_pr_2020.csv", row.names=FALSE)
 
-write.csv(df_punt, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_punt_2020.csv", row.names=FALSE)
+write.csv(df_punt, "datasets/stats_punt_2020.csv", row.names=FALSE)
 
-write.csv(df_rec, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_rec_2020.csv", row.names=FALSE)
+write.csv(df_rec, "datasets/stats_rec_2020.csv", row.names=FALSE)
 
-write.csv(df_rush, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_rush_2020.csv", row.names=FALSE)
+write.csv(df_rush, "datasets/stats_rush_2020.csv", row.names=FALSE)
 
-write.csv(df_tack, "C:/Users/jrdho/OneDrive/Documents/GitHub/NFL/datasets/stats_tack_2020.csv", row.names=FALSE)
+write.csv(df_tack, "datasets/stats_tack_2020.csv", row.names=FALSE)
 ```
 
 
