@@ -1,0 +1,717 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+ 
+
+```{r}
+
+#load packages
+load.libraries <- c('tidyverse')
+install.lib <- load.libraries[!load.libraries %in% installed.packages()]
+for(libs in install.lib) install.packages(libs, dependences = TRUE)
+sapply(load.libraries, require, character = TRUE)
+
+```
+
+
+
+```{r}
+# import data
+
+df <- read.csv(file = "datasets/player_contract_2020.csv") 
+
+df_exp <- read.csv(file = "datasets/player_exp_2022.csv") 
+
+df_fg <- read.csv(file = "datasets/stats_fg_2020.csv") 
+
+df_fumb <- read.csv(file = "datasets/stats_fumb_2020.csv") 
+
+df_int <- read.csv(file = "datasets/stats_int_2020.csv") 
+
+df_ko <- read.csv(file = "datasets/stats_ko_2020.csv") 
+
+df_kor <- read.csv(file = "datasets/stats_kor_2020.csv") 
+
+df_pass <- read.csv(file = "datasets/stats_pass_2020.csv") 
+
+df_pr <- read.csv(file = "datasets/stats_pr_2020.csv") 
+
+df_punt <- read.csv(file = "datasets/stats_punt_2020.csv") 
+
+df_rec <- read.csv(file = "datasets/stats_rec_2020.csv") 
+
+df_rush <- read.csv(file = "datasets/stats_rush_2020.csv") 
+
+df_tack <- read.csv(file = "datasets/stats_tack_2020.csv") 
+
+```
+
+
+# The main objective is to merge all of our data. The 'Player' variable will be our identifier variable and will be used as the common variable to merge the data sets.
+
+# The 'base' variable in dataframe df will be the target variable, so df will be the starting dataframe to which other data sets will be merged.
+
+# There are a couple things that need to be addressed as the other data sets are merged. 
+
+# (1) Make any duplicate entries in the 'Player' variable in df unique.
+# (2) Check for any of the 'Player' values addressed in (1) in any of the data sets to be added, and address those if possible
+# (3) Check for any duplicate values, or NULL data, in the 'Player' variable in the data sets to be added, and address
+# (4) Add a suffix to the non-'Player' variables in the additional data sets incase there are any matching variables names among the datasets (for example, 'Avg' is seen as a variable name in multiple data sets)
+# (5) After data is combined, export the data in a new .csv file
+
+
+
+# Start by examining and addressing duplicates in first dataframe, df
+
+```{r}
+paste("There are ", length(df$Player) - length(unique(df$Player)), " duplicate player names")
+
+
+
+# looking for the duplicates
+dups <- df$Player[duplicated(df$Player)]
+
+dups <- df[df$Player %in% dups,] %>% 
+        arrange(Player, pos)
+
+
+
+
+
+#for our duplicates, we will combined the Player and pos values (player name and position)
+df[df$Player %in% dups$Player, ]$Player <- paste(df[df$Player %in% dups$Player, ]$Player, " ", df[df$Player %in% dups$Player, ]$pos)
+
+
+paste("There are ", length(df$Player) - length(unique(df$Player)), " duplicate player names")
+
+
+# we will also save dataframes dups and dups_fixed to be used to find and address
+# any of these players found in other data sets, so we can merge the appropriate stats to the correct Player
+dups_fixed <- dups
+
+dups_fixed$Player <- paste(dups_fixed$Player, " ", dups_fixed$pos)
+
+
+# re-indexed our dataframe keys to be used later
+rownames(dups) <- NULL
+rownames(dups_fixed) <- NULL
+
+
+```
+
+
+
+```{r}
+
+# next is df_exp
+
+paste("There are ", length(df_exp$Player) - length(unique(df_exp$Player)), " duplicate player names")
+
+
+
+# looking for the duplicates
+dups_temp <- df_exp$Player[duplicated(df_exp$Player)]
+
+df_exp[df_exp$Player %in% dups_temp, ]
+
+
+```
+
+# since it is a small number, it is easy to verify correct entries and create list of entries to be removed
+
+# manually verified the experience for the players above and discover which observations to be removed
+
+```{r}
+
+#rows to be removed
+remove <- c(64, 156, 181, 619, 740, 762, 1204, 1250, 1251, 1334, 1341, 1453, 1467, 1611, 1615, 1902, 2566, 2598)
+
+df_exp <- df_exp[-remove,]
+
+```
+
+
+# Create a few functions to help the process
+
+
+```{r}
+
+# helper function to return rows 
+# with Player names matching list of names 'dups'
+
+#will help find rows needing correction due to our original duplicate player names
+
+find_dups <- function(df, dups) {
+  
+  if (length(df[df$Player %in% dups$Player,]$Player)==0) {
+    return(NULL)
+  }
+  
+  return(df[df$Player %in% dups$Player,])
+  
+}
+
+
+# helper function append column names
+change_names <- function(df, add_on) {
+  
+  names(df)[2:ncol(df)] <- paste(names(df)[2:ncol(df)], add_on, sep = "_")
+  
+  return(df)
+  
+}
+
+```
+
+
+
+```{r}
+
+#Find the correct players from our fixed duplicates in original dataframe
+
+
+find_dups(df_exp, dups)
+
+
+# correct the names with our dups_fixed list
+
+df_exp[df_exp$Player %in% dups$Player,]$Player <- c(dups_fixed[6,]$Player, dups_fixed[1,]$Player, dups_fixed[4,]$Player)
+
+find_dups(df_exp, dups_fixed)
+
+```
+
+
+
+```{r}
+#df_exp is ready so left join the dataframe by Player
+
+df <- merge(x=df, y= df_exp, by="Player", all.x=TRUE)
+```
+
+
+```{r}
+
+#since the experience stat is taken from before the 2022 season and other stats data is from the 2020 season, we will remove three years from the experience 
+
+head(df[which(!is.na(df2$exp)),] %>% arrange(exp, desc = FALSE))
+
+df$exp <- df$exp - 3
+
+
+head(df[which(!is.na(df2$exp)),] %>% arrange(exp, desc = FALSE))
+```
+
+# Processing and adding df_fg data
+
+```{r}
+
+# next is dataframe df_fg
+
+# add suffix to column names
+df_fg <- change_names(df_fg, "fg")
+
+#check for duplicate names
+find_dups(df_fg, dups)
+
+
+# merge data
+df <- merge(x=df, y=df_fg, by = "Player", all.x = TRUE)
+
+```
+
+# Processing and adding df_fumb stats
+
+```{r}
+
+
+
+# add suffix to column names
+df_fumb <- change_names(df_fumb, "fumb")
+
+#check for matches to our master duplicate names
+find_dups(df_fumb, dups)
+
+#no easy way to determine the correct player so will remove names matching our original corrected names
+
+df_fumb <- df_fumb[!(df_fumb$Player %in% dups$Player),]
+
+find_dups(df_fumb, dups)
+
+
+
+
+```
+
+```{r}
+
+
+# checking for and fixing df_fumb duplicate Players of its own
+
+paste("There are ", length(df_fumb$Player) - length(unique(df_fumb$Player)), " duplicate player names")
+
+
+dups_temp <-  df_fumb[duplicated(df_fumb$Player), ]
+
+# again dups_temp is a portion of df_fumb of only entries with duplicate Players
+
+dups_temp <- df_fumb[df_fumb$Player %in% dups_temp$Player,]
+
+
+
+```
+```{r}
+# There are Players with null data represented as an empty string
+
+# Remove those from both dups_temp and df_fumb
+
+dups_temp <- subset(dups_temp, Player!= "")
+
+df_fumb <- subset(df_fumb, Player!= "")
+
+```
+
+
+```{r}
+# fixing double Player entries in df_fumb
+
+# see that all duplicate players have duplicate stats except for Player "David Long"
+dups_temp %>%  group_by(Player) %>%  
+                 summarise("stat_one" = length(unique(FF_fumb)), "stat_two" = length(unique(FR.TD_fumb)), "stat_three" = length(unique(FR_fumb))) %>% 
+                    subset(stat_one > 1 | stat_two > 1 | stat_three > 1)
+
+```
+
+```{r}
+
+# remove duplicates
+df_fumb <- df_fumb[!duplicated(df_fumb),]
+
+# re-index
+rownames(df_fumb) <- NULL
+
+# check David Long
+df_fumb[df_fumb$Player == "David Long", ]
+
+
+# remove David Long entry with zero stats
+df_fumb <- df_fumb[-c(950),]
+
+paste("There are ", length(df_fumb$Player) - length(unique(df_fumb$Player)), " duplicate player names")
+
+```
+
+```{r}
+# add df_fumb stats to df using left join
+
+df <- merge(x=df, y=df_fumb, by = "Player", all.x=TRUE)
+```
+
+
+# Processing and adding df_int
+
+```{r}
+# add suffix to stats variables
+df_int <- change_names(df_int, "int")
+
+
+
+```
+
+
+```{r}
+
+# check for Players in df_int that match our master duplicate list to address if needed
+find_dups(df_int, dups)
+
+paste("There are ", length(df_int$Player) - length(unique(df_int$Player)), " duplicate player names")
+
+```
+
+```{r}
+
+# left join df and df_int
+
+df <- merge(x=df, y = df_int, by = "Player", all.x = TRUE)
+```
+
+
+# processing and adding df_ko data
+
+
+```{r}
+
+# add suffix to df_ko variables
+
+change_names(df_ko, "ko")
+
+```
+
+```{r}
+
+# check for Players in df_int that match our master duplicate list to address if needed
+find_dups(df_ko, dups)
+
+
+paste("There are ", length(df_int$Player) - length(unique(df_int$Player)), " duplicate player names")
+```
+
+```{r}
+# "Chris Jones" was found in our original master dups list so this must be fixed.
+# since we are looking at kick-off stats, we know this is the Chris Jones punter
+# so replace the Player name with corresponding name from dups_fixed
+
+df_ko[df_ko$Player == "Chris Jones", ]$Player <- dups_fixed[2,]$Player
+```
+
+
+```{r}
+# left join df and df_ko
+
+df <- merge(x=df, y=df_ko, by = "Player", all.x = TRUE)
+
+
+```
+
+
+# Processing and adding df_kor data
+
+```{r}
+# add suffic to variable names
+df_kor <- change_names(df_kor, "kor")
+
+
+# check for Players in df_kor that match our master duplicate list to address if needed
+find_dups(df_kor, dups)
+
+
+paste("There are ", length(df_kor$Player) - length(unique(df_kor$Player)), " duplicate player names")
+```
+
+```{r}
+
+# after verifying there are NULL entries in df_kor noted with Player values equal to an empty string (""), we can remove those
+
+df_kor <- subset(df_kor, Player!= "")
+
+paste("There are ", length(df_kor$Player) - length(unique(df_kor$Player)), " duplicate player names")
+```
+
+```{r}
+
+# left join df and df_int
+
+df <- merge(x=df, y = df_int, by = "Player", all.x = TRUE)
+```
+
+
+# Processing and adding df_pass
+
+```{r}
+# add suffic to variable names
+df_pass <- change_names(df_pass, "pass")
+
+
+# check for Players in df_pass that match our master duplicate list to address if needed
+find_dups(df_pass, dups)
+
+
+paste("There are ", length(df_pass$Player) - length(unique(df_pass$Player)), " duplicate player names")
+```
+
+```{r}
+# we found "Chris Jones" in df_pass which must be corrected with Player data from dups_fixed
+# we see Chris Jones only attempted one pass. We will use our Chris Jones that was a kicker, instead of defensive tackle
+
+df_pass[df_pass$Player == "Chris Jones",]$Player <- dups_fixed[2,]$Player
+```
+
+
+```{r}
+
+# addressing the duplicates in df_pass
+
+dups_temp <-  df_pass[duplicated(df_pass$Player), ]
+
+# again dups_temp is a portion of df_fumb of only entries with duplicate Players
+
+dups_temp <- df_pass[df_pass$Player %in% dups_temp$Player,]
+
+
+```
+
+```{r}
+# remove duplicates
+df_pass <- df_pass[!duplicated(df_pass),]
+
+# re-index
+rownames(df_pass) <- NULL
+
+paste("There are ", length(df_pass$Player) - length(unique(df_pass$Player)), " duplicate player names")
+
+```
+
+```{r}
+
+# left join df and df_pass
+df <- merge(x=df, y=df_pass, by = "Player", all.x = TRUE)
+```
+
+# Processing and adding df_pr
+
+```{r}
+# add suffic to variable names
+df_pr <- change_names(df_pr, "pass")
+
+
+# check for Players in df_pass that match our master duplicate list to address if needed
+find_dups(df_pr, dups)
+
+
+paste("There are ", length(df_pr$Player) - length(unique(df_pr$Player)), " duplicate player names")
+```
+
+```{r}
+
+# address duplicate player names 
+
+# remove duplicates
+df_pr <- df_pr[!duplicated(df_pr),]
+
+# re-index
+rownames(df_pr) <- NULL
+
+paste("There are ", length(df_pass$Player) - length(unique(df_pass$Player)), " duplicate player names")
+
+```
+```{r}
+
+# inner join df and df_pr
+df <- merge(x=df, y=df_pr, by = "Player", all.x = TRUE)
+```
+
+
+# Processing and adding data from df_punt
+
+```{r}
+
+# add suffic to variable names
+df_punt <- change_names(df_punt, "punt")
+
+
+# check for Players in df_pass that match our master duplicate list to address if needed
+find_dups(df_punt, dups)
+
+paste("There are ", length(df_punt$Player) - length(unique(df_punt$Player)), " duplicate player names")
+
+```
+
+```{r}
+# "Chris Jones" matched our master duplicate names so will replace with Player data from the punter Chris Jones from dups_fixed
+
+df_punt[df_punt$Player == "Chris Jones", ]$Player <- dups_fixed[2,]$Player
+```
+
+```{r}
+
+# left join df and df_punt by Player
+df <- merge(x=df, y=df_punt, by= "Player", all.x = TRUE)
+
+
+```
+
+
+# Processing and adding data from df_rec
+
+```{r}
+
+# add suffic to variable names
+df_rec <- change_names(df_rec, "rec")
+
+
+# check for Players in df_pass that match our master duplicate list to address if needed
+find_dups(df_rec, dups)
+
+# remove null data
+df_rec <- subset(df_rec, Player!= "")
+
+
+paste("There are ", length(df_rec$Player) - length(unique(df_rec$Player)), " duplicate player names")
+
+```
+
+```{r}
+#"Michael Thomas" and "Ryan Griffin" were found and must be corrected with dups_fixed
+# since we are in reception stats, "Michael Thomas WR" and "Ryan Griffin TE" will be used to replace
+
+df_rec[df_rec$Player == "Michael Thomas", ]$Player <- dups_fixed[4,]$Player
+
+df_rec[df_rec$Player == "Ryan Griffin", ]$Player <- dups_fixed[6, ]$Player
+
+
+```
+
+
+```{r}
+
+# left join data
+df <- merge(x=df, y=df_rec, by="Player", all.x = TRUE)
+```
+
+
+# Processing and adding df_rush data
+
+```{r}
+
+# add suffic to variable names
+df_rush <- change_names(df_rush, "rush")
+
+
+# check for Players in df_pass that match our master duplicate list to address if needed
+find_dups(df_rush, dups)
+
+# remove null data
+df_rush <- subset(df_rush, Player!= "")
+
+
+paste("There are ", length(df_rush$Player) - length(unique(df_rush$Player)), " duplicate player names")
+
+```
+```{r}
+
+#"Michael Thomas" and "Chris Jones" were found and must be correct with dups_fixed
+# since we are in rush stats, "Michael Thomas SS" and "Chris Jones P" will be used to replace
+
+df_rec[df_rush$Player == "Michael Thomas", ]$Player <- dups_fixed[3,]$Player
+
+df_rec[df_rush$Player == "Chris Jones", ]$Player <- dups_fixed[2, ]$Player
+
+
+```
+
+```{r}
+
+# left join
+df <- merge(x=df, y=df_rec, by="Player", all.x = TRUE)
+```
+
+# Processing and adding df_tack data
+
+
+```{r}
+
+# add suffix to variable names
+df_tack <- change_names(df_tack, "tack")
+
+
+# remove null data
+df_tack <- subset(df_tack, Player!= "")
+
+rownames(df_tack) <- NULL
+
+
+# check for Players in df_pass that match our master duplicate list to address if needed
+find_dups(df_tack, dups)
+
+
+paste("There are ", length(df_tack$Player) - length(unique(df_tack$Player)), " duplicate player names")
+
+```
+
+```{r}
+
+#two "Chris Jones" entries, "Michael Thomas" and "Ryan Griffin" were found and must be correct with dups_fixed
+# since we are in tackle stats, "Chris Jones DT" will be used for the "Chris Jones" with higer Tackle stats and "Chris Jones P" for the other entry, "Chris Jones P" will be used to replace the other entry
+#also using "Michael Thomas SS" and "Ryan Griffin TE" for the other entry
+# it is not clear which Ryan Griffin to use but seems like a TE will be more likely to get tackles than a QB
+
+
+df_tack[352, ]$Player <- dups_fixed[1,]$Player
+
+
+df_tack[df_tack$Player == "Michael Thomas", ]$Player <- dups_fixed[3,]$Player
+
+df_tack[df_tack$Player == "Chris Jones", ]$Player <- dups_fixed[2, ]$Player
+
+
+df_tack[df_tack$Player == "Ryan Griffin", ]$Player <- dups_fixed[6,]$Player
+
+```
+
+
+```{r}
+
+# addressing the duplicates in df_pass
+
+dups_temp <-  df_pass[duplicated(df_pass$Player), ]
+
+# again dups_temp is a portion of df_fumb of only entries with duplicate Players
+
+dups_temp <- df_pass[df_pass$Player %in% dups_temp$Player,]
+
+
+```
+
+
+
+```{r}
+# address duplicate player names 
+
+# remove duplicates
+df_tack <- df_tack[!duplicated(df_tack),]
+
+# re-index
+rownames(df_tack) <- NULL
+
+paste("There are ", length(df_tack$Player) - length(unique(df_tack$Player)), " duplicate player names")
+```
+```{r}
+#set up a list of our remaining duplicates in df_tack to see how to address
+
+dups_temp <-  df_tack[duplicated(df_tack$Player), ]
+
+# again dups_temp is a portion of df_fumb of only entries with duplicate Players
+
+dups_temp <- df_tack[df_tack$Player %in% dups_temp$Player,]
+
+
+```
+
+
+```{r}
+
+
+dups_temp
+
+# We are looking at tackles data.
+# Since our "Lamar Jackson" is a QB, we will remove the "Lamar Jackson" with 28 comb_tack
+# There is no "David Long" in df so it can be ignored
+# Our "Brandon Williams" is a DT so will keep the stats with 33 comb_tack
+# Our "Josh Allen" is a DE so will keep the stats with 13 comb_tack
+
+# using our observations above, create list of entries to be removed from df_tack
+
+remove <- c(437, 1161, 1447)
+
+df_tack <- df_tack[-remove,]
+```
+
+
+
+```{r}
+
+# left join data
+df <- merge(x=df, y=df_tack, by="Player", all.x = TRUE)
+```
+
+
+# All data has be combined, now export the data to new .csv file
+
+```{r}
+# export data to cvs files
+
+write.csv(df, "datasets/NFL_2020_stats.csv", row.names=FALSE)
+```
+
