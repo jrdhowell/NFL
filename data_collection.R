@@ -1,4 +1,17 @@
 
+
+# Below we will be webscraping data from 4 different sources
+
+#(1) we will grab a table of players, their position, team and base contract from spotrac.com from the 2020 season, noting that it only includes the "top" salaries from 2020 (1000 entries)
+
+#(2) from  NFL.com, using some helper function and nested loops, stats for players in the 2020 season will be scraped from several different sites
+
+#(3) from NFL.com, using a similar technique, get experience data for players from 2022 season. This will need to be accounted for later.
+
+#(4) from nflpenalties.com penalty data will be scraped, noting that it only includes penalty data for players that accumalated at least 4 accepted penalties in 2020
+
+#(5) export data sets as .csv files
+
   
 
 
@@ -317,6 +330,25 @@ for (x in 2:length(subURLs[])) {
 
 
 
+
+#navigate to site to collect penalty data
+#remDr$navigate("https://www.nflpenalties.com/all-players.php?view=total&year=2020")
+
+#collect site elements
+html <- remDr$getPageSource()[[1]]
+website <- read_html(html)
+
+
+#Collect penalty data data
+allTables <- html_nodes(website, css = "table")
+dt <- html_table(allTables[[1]], fill = TRUE)
+
+#create complete dataframe of player, team, position and base contract 
+df_pen <- data_frame(dt)
+names(df_pen)[1] <- c("Player")
+
+
+
 # export data to cvs files
 
 
@@ -345,4 +377,7 @@ write.csv(df_rec, "datasets/stats_rec_2020.csv", row.names=FALSE)
 write.csv(df_rush, "datasets/stats_rush_2020.csv", row.names=FALSE)
 
 write.csv(df_tack, "datasets/stats_tack_2020.csv", row.names=FALSE)
+
+write.csv(df_pen, "datasets/stats_pen_2020.csv", row.names=FALSE)
+
 
