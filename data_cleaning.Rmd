@@ -8,21 +8,45 @@ output: html_document
 
 #There are a few things accomplished below.
 
-#(1) Going through the data by each position, look for players with no stats (ie NULL data while not considering penalty stats). If players are found, look at an external source to see if player actually recorded stats or not. If a player(s) did record stats, the actual data from the external source was used to replace null data if it was only one player per positon and the data was imputed if more than one player was found per position by using the mean of the data from other players in the same position. 
-#Items to note: (a) the number of players from each position with null data that should have recorded data, if any, was relatively small and estimated to be <10%. (b) only position relevant stats were imputed (c) the mean was used instead of the mode because it was observed that players that should have had stats generally saw substantial playing time. The mean seemed to be a better approximate for the missing data.
+#(1) Going through the data by each position, look for players with no stats (ie NULL
+#data while not considering penalty stats). If players are found, look at an external
+#source to see if player actually recorded stats or not. If a player(s) did record
+#stats, the actual data from the external source was used to replace null data if it 
+#was only one player per positon and the data was imputed if more than one player was 
+#found per position by using the mean of the data from other players in the same 
+#position. 
+#Items to note: (a) the number of players from each position with null data that 
+#should have recorded data, if any, was relatively small and estimated to be <10%. (b) #only position relevant stats were imputed (c) the mean was used instead of the mode 
+#because it was observed that players that should have had stats generally saw 
+#substantial playing time. The mean seemed to be a better approximate for the missing 
+#data.
 
-#(2) For missing experience, the data was imputed by the mean of other player's experience from the same position. Reasoning: it was observed that most players with missing experience had retired by 2023 when the experience data was captured. There were some who were otherwise released. The mean seemed to be a better approximation NOTE: there was a substantial amount of imputed experience data (estimated to be around 30%)
+#(2) For missing experience, the data was imputed by the mean of other player's 
+#experience from the same position. Reasoning: it was observed that most players with 
+#missing experience had retired by 2023 when the experience data was captured. There 
+#were some who were otherwise released. The mean seemed to be a better approximation 
+#NOTE: there was a substantial amount of imputed experience data (estimated to be 
+#around 30%)
 
-#(3) Some field goal stats were string/character data types that represented a fraction (ex. fg1_19: "2/3"). The variable in question was split and the string was split to represent the two new variables (fg1_19 became fg1_19_made: 2 and fg1_19_att: 3)
+#(3) Some field goal stats were string/character data types that represented a 
+#fraction (ex. fg1_19: "2/3"). The variable in question was split and the string was 
+#split to represent the two new variables (fg1_19 became fg1_19_made: 2 and 
+#fg1_19_att: 3)
 
-#(4) Variable pen_type is a list (as a string/character) of penalties and amount of times committed for each player (example: "Illegal Grounding (2), False Start (1)"). New variables were created for each type of penalty with their amounts. Then original pen_type variable was removed
+#(4) Variable pen_type is a list (as a string/character) of penalties and amount of 
+#times committed for each player (example: "Illegal Grounding (2), False Start (1)"). 
+#New variables were created for each type of penalty with their amounts. Then original #pen_type variable was removed
 
-#(5) After all relevant NA data and data engineering was complete, all other NA data was replaced with zero
+#(5) After all relevant NA data and data engineering was complete, all other NA data 
+#was replaced with zero
 
-#(6) Finally, all string (character) data types that should be integers, were converted as such.
+#(6) Finally, all string (character) data types that should be integers, were 
+#converted as such.
 
 
-#When going through the first two positions below the process is more fleshed out,  showing the data as it was observed and thought processes. Then the rest of the code goes through the changes without showing each step of observations.
+#When going through the first two positions below the process is more fleshed out,  
+#showing the data as it was observed and thought processes. Then the rest of the code 
+#goes through the changes without showing each step of observations.
 
 ```{r}
 #load packages
@@ -162,14 +186,16 @@ df[na_index, pass_index]
 
 ```{r}
 
-# Since it is a short list of players, its easy to check another source to see what the data looks like. Using pro-football-reference.com, it shows 3 of the 4 did not record any stats.
+# Since it is a short list of players, its easy to check another source to see what 
+#the data looks like. Using pro-football-reference.com, it shows 3 of the 4 did not 
+#record any stats.
 
 # However "A.J. McCarron", did record stats that should be included in in our data. 
 
 
 
 
-# create lists, one to replace stats in pass_index to insert the stats found for "A.J. McCarron".
+# create lists, one to replace stats in pass_index to insert the stats found for "A.J. #McCarron".
 
 
 # "A.J. McCarron did have limited stats that were found on espn.com
@@ -212,11 +238,14 @@ df[df$pos == "QB", ] %>% group_by(exp) %>%
                          summarise(exp_count = length(unique(player)))
 
 # looking at the list of QBs with no exp records and with a little investigation
-# the QBs with no experience data are players who were not on a team roster when the 2023 experience stats were published, mostly because the player has retired or was released
+# the QBs with no experience data are players who were not on a team roster when the 
+#2023 experience stats were published, mostly because the player has retired or was 
+#released
 
 head(df[with(df, pos == "QB" & is.na(exp)), c(1,2,5)])
 
-# since the missing data is mostly for players that have retired by 2023, we will use the mean to impute the missing data
+# since the missing data is mostly for players that have retired by 2023, we will use 
+#the mean to impute the missing data
 
 df[with(df, pos == "QB" & is.na(exp)), ]$exp <- as.integer(as.double(0.5) + mean(df[df$pos == "QB",]$exp, na.rm = TRUE))
 ```
@@ -236,7 +265,9 @@ na_index <- findna(df, df[df$pos == "CB",])
 df[na_index, 1:2]
 
 
-# Again, since it is a relatively small number of CBs with missting stats, after checking with external sources (pro-football-reference.com), most players with null data did not record any stats
+# Again, since it is a relatively small number of CBs with missting stats, after 
+#checking with external sources (pro-football-reference.com), most players with null 
+#data did not record any stats
 #however four did have stats for 2020 that report NULL in our data
 # its impractical to add all data manually, will impute other missing data from now on
 
@@ -274,7 +305,9 @@ paste("There are ", length(df[with(df, pos == "CB" & is.na(exp)),1]), " CBs with
 
 
 
-# checking externally, again the players recorded no experience because they were retired or inactive by 2022 when the stats were published for active rosters, will use the mean of the experience of other CBs to impute missing data
+# checking externally, again the players recorded no experience because they were 
+#retired or inactive by 2022 when the stats were published for active rosters, will 
+#use the mean of the experience of other CBs to impute missing data
 
 df[with(df, pos == "CB" & is.na(exp)), ]$exp <- as.integer(as.double(0.5) + mean(df[df$pos == "CB",]$exp, na.rm = TRUE))
 
@@ -349,7 +382,9 @@ fix_exp <- function(df) {
 
 ```{r}
 
-# pos G presents a problem. pos G has no relevants stats. They do show some stats in fumb_index and tack_index, but a large portion of G players show no data in one or both of the variable groups.
+# pos G presents a problem. pos G has no relevants stats. They do show some stats in 
+#fumb_index and tack_index, but a large portion of G players show no data in one or 
+#both of the variable groups.
 
 # So as usual, will use the mean to imput missing experience and then replace all null data with 0
 
@@ -813,21 +848,42 @@ find_pen <- function(df, target) {
   
   # note: the sub string to be returned is always a certain number of characters after the target string is found
   
-  return(ifelse(str_detect(df, target), substring( df, str_locate(df, target) + nchar(gsub(pattern = ('\\'), replacement =  "", x = target, fixed = T)), str_locate(df, target) + nchar(gsub(pattern = ('\\'), replacement =  "", x = target, fixed = T))), "0"
-))
+  return(ifelse(str_detect(df, target), 
+                substring( df, 
+                           str_locate(df, target) + nchar(gsub(pattern = ('\\'), replacement =  "", x = target, fixed = T)), 
+                           str_locate(df, target) + nchar(gsub(pattern = ('\\'), replacement =  "", x = target, fixed = T))),
+                "0"))
   
 }
 
 
 # create list which  will be the names of our new variables from the data engineering, found by examining pen_type
 
-pen_names <-  c("pen_facemask", "pen_defint", "pen_defhol", "pen_illhand", "pen_horscol",  "pen_targ", "pen_roughing", "pen_neutzone", "pen_unsports", "pen_inellpass", "pen_offhold", "pen_falsestart", "pen_unnesrough", "pen_illcontact"," pen_illbwaist", "pen_disqau", "pen_chopblock", "pen_blindblock", "pen_offinterf", "pen_intground", "pen_freekick", "pen_defoff", "pen_forwpass", "pen_encroach", "pen_illform", "pen_illmotion")
+pen_names <-  c("pen_facemask", "pen_defint", "pen_defhol", "pen_illhand", 
+                "pen_horscol",  "pen_targ", "pen_roughing", "pen_neutzone", 
+                "pen_unsports", "pen_inellpass", "pen_offhold", "pen_falsestart", 
+                "pen_unnesrough", "pen_illcontact"," pen_illbwaist", "pen_disqau", 
+                "pen_chopblock", "pen_blindblock", "pen_offinterf", "pen_intground", 
+                "pen_freekick", "pen_defoff", "pen_forwpass", "pen_encroach", 
+                "pen_illform", "pen_illmotion")
 
 
 # pen_key will be the target strings to look for in pen_type, special characters must be noted to work with mutate, and but also must be removed when finding sub string representing the number of penalties
 # also must be in the same order as pen_names above
 
-pen_key <- c("Face Mask \\(15 Yards\\) \\(", "Defensive Pass Interference \\(", "Defensive Holding \\(", "Illegal Use of Hands \\(", "Horse Collar Tackle \\(", "Lowering the Head to Initiate Contact \\(", "Roughing the Passer \\(", "Neutral Zone Infraction \\(", "Unsportsmanlike Conduct \\(", "Ineligible Downfield Pass \\(", "Offensive Holding \\(", "False Start \\(", "Unnecessary Roughness \\(", "Illegal Contact \\(", "Block Above the Waist \\(", "Disqualification \\(", "Chop Block \\(", "Illegal Blindside Block \\(", "Offensive Pass Interference \\(", "Intentional Grounding \\(", "Offside on Free Kick \\(", "Defensive Offside \\(", "Illegal Forward Pass \\(", "Encroachment \\(", "Illegal Formation \\(", "Illegal Motion \\(")
+pen_key <- c("Face Mask \\(15 Yards\\) \\(", "Defensive Pass Interference \\(",
+             "Defensive Holding \\(", "Illegal Use of Hands \\(", 
+             "Horse Collar Tackle \\(", "Lowering the Head to Initiate Contact \\(",
+             "Roughing the Passer \\(", "Neutral Zone Infraction \\(", 
+             "Unsportsmanlike Conduct \\(", "Ineligible Downfield Pass \\(", 
+             "Offensive Holding \\(", "False Start \\(", 
+             "Unnecessary Roughness \\(", "Illegal Contact \\(", 
+             "Block Above the Waist \\(", "Disqualification \\(", 
+             "Chop Block \\(", "Illegal Blindside Block \\(", 
+             "Offensive Pass Interference \\(", "Intentional Grounding \\(", 
+             "Offside on Free Kick \\(", "Defensive Offside \\(", 
+             "Illegal Forward Pass \\(", "Encroachment \\(", 
+             "Illegal Formation \\(", "Illegal Motion \\(")
 
 
 # for loop to add new variables and values
