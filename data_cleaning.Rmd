@@ -1,0 +1,889 @@
+---
+title: "data_wrangling"
+output: html_document
+---
+
+
+# Data cleaning and some data engineering.
+
+#There are a few things accomplished below.
+
+#(1) Going through the data by each position, look for players with no stats (ie NULL data while not considering penalty stats). If players are found, look at an external source to see if player actually recorded stats or not. If a player(s) did record stats, the actual data from the external source was used to replace null data if it was only one player per positon and the data was imputed if more than one player was found per position by using the mean of the data from other players in the same position. 
+#Items to note: (a) the number of players from each position with null data that should have recorded data, if any, was relatively small and estimated to be <10%. (b) only position relevant stats were imputed (c) the mean was used instead of the mode because it was observed that players that should have had stats generally saw substantial playing time. The mean seemed to be a better approximate for the missing data.
+
+#(2) For missing experience, the data was imputed by the mean of other player's experience from the same position. Reasoning: it was observed that most players with missing experience had retired by 2023 when the experience data was captured. There were some who were otherwise released. The mean seemed to be a better approximation NOTE: there was a substantial amount of imputed experience data (estimated to be around 30%)
+
+#(3) Some field goal stats were string/character data types that represented a fraction (ex. fg1_19: "2/3"). The variable in question was split and the string was split to represent the two new variables (fg1_19 became fg1_19_made: 2 and fg1_19_att: 3)
+
+#(4) Variable pen_type is a list (as a string/character) of penalties and amount of times committed for each player (example: "Illegal Grounding (2), False Start (1)"). New variables were created for each type of penalty with their amounts. Then original pen_type variable was removed
+
+#(5) After all relevant NA data and data engineering was complete, all other NA data was replaced with zero
+
+#(6) Finally, all string (character) data types that should be integers, were converted as such.
+
+
+#When going through the first two positions below the process is more fleshed out,  showing the data as it was observed and thought processes. Then the rest of the code goes through the changes without showing each step of observations.
+
+```{r}
+#load packages
+load.libraries <- c('tidyverse')
+install.lib <- load.libraries[!load.libraries %in% installed.packages()]
+for(libs in install.lib) install.packages(libs, dependences = TRUE)
+sapply(load.libraries, require, character = TRUE)
+```
+
+
+
+```{r}
+
+# import data
+
+df <- read.csv(file = "datasets/NFL_2020_stats.csv") 
+
+```
+
+
+
+```{r}
+
+
+# change column names to something more readable and meaningful
+
+
+
+names <- c("player", "team", "pos", "base", "exp", "fg_make", "fg_att", "fg_per", "fg1_19", "fg20_29", "fg30_39", "fg40_49", "fg50_59", "fg60_69", "fg_long", "fg_blk", "fumb_force", "fumb_return", "fumb_td", "int", "int_td", "int_yds", "int_lng", "ko", "ko_yds", "ko_ret_yards", "ko_tb", "ko_tb2", "ko_ret_count", "ko_ret_avg", "ko_osk", "ko_osk_rec", "ko_oob", "ko_td", "kor_avg", "kor_ret", "kor_yds", "kor_td", "kor20", "kor40", "kor_long", "kor_fc", "kor_fumb", "pass_yds_tot", "pass_yds_att", "pass_att", "pass_comp", "pass_comp_yds", "pass_td", "pass_int", "pass_rate", "pass_x1st", "pass_x1st_yds", "pass20", "pass40", "pass_lng", "pass_sck", "pass_scky", "pr_avg", "pr_ret", "pr_yds", "pr_et", "pr20", "pr40", "pr_lng", "pr_fc", "pr_fumb", "punt_avg", "punt_net_avg", "punt_net_yds", "punt", "punt_long", "punt_yds", "punt20", "punt_OOB", "punt_dn", "punt_tb", "punt_fc", "punt_ret", "punt_rety", "punt_td", "punt_blk", "rec", "rec_yds", "rec_td", "rec20", "rec40", "rec_lng", "rec1", "recx1st", "rec_fum", "rec_yac", "rec_tgt", "rush_yds", "rush_att", "rush_td", "rush20", "rush40", "rush_lng", "rush_1", "rush1st", "rush_fum_rush", "tack_comb", "tack_ass", "tack_solo", "tack_sck", "pen_pen", "pen_yds", "pen_dec", "pen_offset", "pen_totflags", "pen_presnap", "pen_game", "pen_ydsgame", "pen_ofteam", "pen_type")
+
+colnames(df) <- names
+
+```
+
+
+#Imputing and cleaning data for each position ('pos')
+
+```{r}
+
+# code to see the column names
+#colnames(df)
+
+
+# using column names, manually create vectors to keep index of related stats
+
+fg_index <- c(1:16)
+
+fumb_index <- c(1, 2, 17:19)
+
+int_index <- c(1, 2, 20:23)
+
+ko_index <- c(1, 2, 24:34)
+
+kor_index <- c(1, 2, 35:43)
+
+pass_index <- c(1, 2, 44:58)
+
+pr_index <- c(1, 2, 59:67)
+
+punt_index <- c(1, 2, 68:82)
+
+rec_index <- c(1, 2, 83:93)
+
+rush_index <- c(1, 2, 94:102)
+
+tack_index <- c(1, 2, 103:106)
+
+pen_index <- c(1,2, 107:ncol(df))
+
+```
+
+
+
+```{r}
+
+#example of our stat index
+head(df[df$pos == "C", pen_index])
+
+# look at the unique positions
+unique(df$pos)
+
+```
+
+
+```{r}
+
+# sizing the data up, 
+
+# looking at the data, some stats are relevant for the position and some are not
+# non-relevant stats are always NULL
+df[1,c(1:5, 100:105)]
+
+
+
+# looking at relevant stats, there is still some NULL data
+na.cols <- which(colSums(is.na(df[df$pos == "QB", pass_index]
+)) > 0)
+paste("There are", length(na.cols), "columns with null data in pass_index stats")
+
+
+
+```
+
+```{r}
+
+# create a helper function to return an index list to find the players with NA data
+# df_temp will specify the pos variable to restrict the group of player to a certain position
+
+findna <- function(df, df_temp) {
+
+  # find the players with NA stats, must account for five variables all obversation have
+  na_rows <- which(rowSums(!is.na(df_temp[,-pen_index])) < 6)
+  
+  # create index of players with null data for relevant stats
+  na_index <- which(df$player %in% df_temp[na_rows,]$player)
+  
+  return(na_index)  
+
+}
+```
+
+
+
+```{r}
+# showing how find_na function works
+
+# find the QBs with NULL data
+na_index <- findna(df, df[df$pos == "QB",])
+
+
+df[na_index, pass_index]
+
+```
+
+
+
+
+```{r}
+
+# Since it is a short list of players, its easy to check another source to see what the data looks like. Using pro-football-reference.com, it shows 3 of the 4 did not record any stats.
+
+# However "A.J. McCarron", did record stats that should be included in in our data. 
+
+
+
+
+# create lists, one to replace stats in pass_index to insert the stats found for "A.J. McCarron".
+
+
+# "A.J. McCarron did have limited stats that were found on espn.com
+# will replace his data with correct information
+replace <- c(20, 20, 1, 1, 100, 0, 0, 0, 0, 0, 1, 0, 20, 1, 0)
+
+df[df$player == "A.J. McCarron",] <- replace(df[df$player == "A.J. McCarron",], pass_index[3:length(pass_index)], replace)
+  
+
+```
+
+
+
+
+
+```{r}
+# function to find mode.
+getmode <- function(v) {
+             
+   uniqv <- unique(v[which(!is.na(v))])
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+
+#Look at the exp variable for QBs
+
+```{r}
+
+# imputing missing experience data
+
+#glance at the tendencies of the exp distribution for only QBs 
+
+df[df$pos == "QB", ] %>% summarise(
+  variable = names(exp), mean = as.integer(mean(exp, na.rm = TRUE)), mode = getmode(exp), median = median(exp, na.rm = TRUE)) 
+
+# glance at the distribution
+
+df[df$pos == "QB", ] %>% group_by(exp) %>% 
+                         summarise(exp_count = length(unique(player)))
+
+# looking at the list of QBs with no exp records and with a little investigation
+# the QBs with no experience data are players who were not on a team roster when the 2023 experience stats were published, mostly because the player has retired or was released
+
+head(df[with(df, pos == "QB" & is.na(exp)), c(1,2,5)])
+
+# since the missing data is mostly for players that have retired by 2023, we will use the mean to impute the missing data
+
+df[with(df, pos == "QB" & is.na(exp)), ]$exp <- as.integer(as.double(0.5) + mean(df[df$pos == "QB",]$exp, na.rm = TRUE))
+```
+
+
+
+```{r}
+
+# getting the CBs with NA data for stats 
+
+# index of pos CBs w/ no data
+na_index <- findna(df, df[df$pos == "CB",]) 
+
+
+
+# take a look at the pos = CB players that have all null data
+df[na_index, 1:2]
+
+
+# Again, since it is a relatively small number of CBs with missting stats, after checking with external sources (pro-football-reference.com), most players with null data did not record any stats
+#however four did have stats for 2020 that report NULL in our data
+# its impractical to add all data manually, will impute other missing data from now on
+
+# index of CB - players that should have stats
+player_index <- c(226, 590, 855, 919)
+
+
+```
+```{r}
+
+
+# imputing the missing data for four CBs
+# when checking external source, the missing players saw substantial playing time
+# so the mean of other CB stats will be used to impute the data instead of the mode
+# this will provide a closer approximate the four missing CBs data 
+
+target_index <- union(fumb_index, union(int_index, tack_index))
+
+target_index <- target_index[!target_index %in% c(1,2)]
+
+   # if data is null, replace with mean of CB stats
+  df[df$pos == "CB", target_index ] <- df[df$pos == "CB", target_index] %>% mutate_all(~replace(., is.na(.), as.integer(mean(., na.rm = TRUE)))) 
+
+# seeing the results, we see the resulting data is int = 1 but int_yds and int_lng are different
+# since the mean int is 1, we will correct the int_yds to be equal to the int_lng
+
+df[player_index, ]$int_yds <- df[player_index, ]$int_lng
+
+
+# impute missing experience data for CBs
+
+paste("There are ", length(df[with(df, pos == "CB" & is.na(exp)),1]), " CBs with missing exp out of ", length(df[df$pos == "CB",1]))
+
+
+
+
+
+# checking externally, again the players recorded no experience because they were retired or inactive by 2022 when the stats were published for active rosters, will use the mean of the experience of other CBs to impute missing data
+
+df[with(df, pos == "CB" & is.na(exp)), ]$exp <- as.integer(as.double(0.5) + mean(df[df$pos == "CB",]$exp, na.rm = TRUE))
+
+
+```
+
+#Next, clean data for pos = WR
+#relevant stats: rec_index
+
+```{r}
+
+# first take a look at the players with null data for relevant stats
+
+
+# create index of players with null data for relevant stats
+na_index <- findna(df, df[df$pos == "WR",]) 
+
+
+# looking at the players with an external source, two players should have data.
+# Create index for data to impute
+player_index <- c(326, 763)
+
+```
+
+
+```{r}
+
+# imputing the missing data for two WRs
+# when checking external source, the missing players saw substantial playing time
+# so the mean of other WR stats will be used to impute the data instead of the mode
+# this will provide a closer approximation for the four missing WRs data
+# will review after to check for descrepencies  
+
+
+target_index <- rec_index[!rec_index %in% c(1,2)]
+
+   # if data is null, replace with mean of CB stats
+df[df$pos == "WR", target_index ] <- df[df$pos == "WR", target_index] %>% mutate_all(~replace(., is.na(.), as.integer(mean(., na.rm = TRUE)))) 
+
+
+# impute missing experience data for WRs
+
+paste("There are ", length(df[with(df, pos == "WR" & is.na(exp)),1]), " WRs with missing exp out of ", length(df[df$pos == "WR",1]))
+
+
+
+# commented out code to view WR - players with missing exp stats
+
+#df[with(df, pos == "WR" & is.na(exp)),1]
+
+
+# again will use the mean exp of WRs since most players with missing experience have retired since 2020
+
+df[with(df, pos == "WR" & is.na(exp)), ]$exp <- as.integer(as.double(0.5) + mean(df[df$pos == "WR",]$exp, na.rm = TRUE))
+
+```
+
+```{r}
+# helper function to impute experience data to use going forward
+
+fix_exp <- function(df) {
+  
+  df$exp <- ifelse(is.na(df$exp), as.integer(as.double(0.5) + mean(df$exp, na.rm = TRUE)),  df$exp)
+  
+  return(df)
+}
+
+```
+
+
+#Clean data when pos = G
+
+```{r}
+
+# pos G presents a problem. pos G has no relevants stats. They do show some stats in fumb_index and tack_index, but a large portion of G players show no data in one or both of the variable groups.
+
+# So as usual, will use the mean to imput missing experience and then replace all null data with 0
+
+
+# impute missing experience data for pos = G
+
+
+df[df$pos == "G",] <- fix_exp(df[df$pos == "G",])
+
+
+
+
+
+
+```
+
+
+#Cleaning data when pos = OLB
+#relevant stats: fumb_index and tack_index 
+#some stats recorded: int_index
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "OLB",])
+
+
+#code to view OLB players with missing data
+#df[df$pos == "OLB", int_index]
+
+
+# since there is only one player, we will replace their stats manually from stats found externally
+player_index <- c(368)
+
+replace_tack <- c(117, 39, 78, 2)
+
+replace_fumb <- c(4, 1, 0)
+
+replace_int <- c(2, 0, 65, 51)
+
+df[player_index,] <- replace(df[player_index, ], tack_index[3:length(tack_index)], replace_tack) 
+
+df[player_index,] <- replace(df[player_index, ], fumb_index[3:length(fumb_index)], replace_fumb)
+
+df[player_index,] <- replace(df[player_index, ], int_index[3:length(int_index)], replace_int)
+
+# replace NA experience with mean of OLB exp
+df[df$pos == "OLB",] <- fix_exp(df[df$pos == "OLB",])
+
+
+```
+
+
+#Next position is C
+#Again, like pos G, pos C does not record many stats. Will impute exp and replace all stats with 0.
+
+
+
+
+```{r}
+
+
+# impute exp for pos C
+
+df[df$pos == "C",] <- fix_exp(df[df$pos == "C",])
+```
+
+
+#Next position LS
+#relevant stats fumb_index and tack_index
+
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "LS",])
+
+# it was verified the players with null stats recorded no stats
+
+
+# impute experience
+
+df[df$pos == "LS",] <- fix_exp(df[df$pos == "LS",])
+
+
+
+```
+#Next pos is DT
+#Relevant stats: fumb_index and tack_index
+
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "DT",])
+
+# one player with no stats recorded stats. Will manually replace
+player_index <- c(235)
+
+replace_tack <- c(54, 27, 27, 3)
+
+replace_fumb <- c(3, 1, 0)
+
+# insert tack stats
+df[player_index, ] <- replace(df[player_index, ], tack_index[3:length(tack_index)], replace_tack)
+
+# insert fumble stats
+df[player_index, ] <- replace(df[player_index, ], fumb_index[3:length(fumb_index)], replace_fumb)
+
+
+# impute experience
+
+df[df$pos == "DT",] <- fix_exp(df[df$pos == "DT",])
+
+
+```
+
+#Next pos = RB
+#relevant stats: rec_index and rush_index
+
+```{r}
+
+# index of RBs with null stats
+na_index <- findna(df, df[df$pos == "RB",])
+
+# both players with null stats should have recorded stats
+player_index <- c(201, 828)
+
+# impute experience
+df[df$pos == "RB",] <- fix_exp(df[df$pos == "RB",])
+
+
+# impute relevant stats for RBs with missing stats
+
+target_index <- union(rush_index, rec_index)
+target_index <- target_index[!target_index %in% c(1,2)]
+
+   # if data is null, replace with mean of RB stats
+df[df$pos == "RB", target_index ] <- df[df$pos == "RB", target_index] %>% mutate_all(~replace(., is.na(.), as.integer(mean(., na.rm = TRUE)))) 
+
+
+```
+
+#next pos = DE
+#relevant stats: fumb_index and tack_index
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "DE",])
+
+# there is only one player that should have recorded stats. Replace those manually.
+
+player_index <- c(294)
+
+replace_fumb <- c(0, 1, 0)
+
+replace_tack <- c(58, 24, 34, 6.5)
+
+df[player_index, ] <- replace(df[player_index,], fumb_index[3:length(fumb_index)], replace_fumb)
+
+df[player_index, ] <- replace(df[player_index,], tack_index[3:length(tack_index)], replace_tack)
+
+
+# impute experience
+
+df[df$pos == "DE", ] <- fix_exp(df[df$pos == "DE",])
+```
+
+#next pos = TE
+#relevant stats: rec_index
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "TE",])
+
+#there are no TEs with null data
+
+
+# impute exp for TEs
+
+df[df$pos == "TE",] <- fix_exp(df[df$pos == "TE",])
+
+```
+
+
+#next pos = ILB
+#relevant stats: fumb_index and tack_index
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "ILB",])
+
+# only one player with null data. Replace data manually
+
+player_index <- c(65)
+
+replace_fumb <- c(0, 0, 0)
+
+replace_tack <- c(92, 27, 65, 0)
+
+df[player_index, ] <- replace(df[player_index,], fumb_index[3:length(fumb_index)], replace_fumb)
+
+df[player_index, ] <- replace(df[player_index,], tack_index[3:length(tack_index)], replace_tack)
+
+# imput experience for ILB
+
+df[df$pos == "ILB",] <- fix_exp(df[df$pos == "ILB",])
+
+
+
+```
+
+#Next pos = FS
+#relevant stats: fumb_index, tack_index
+
+```{r}
+
+
+na_index <- findna(df, df[df$pos == "FS",])
+
+# two players should have stats
+
+player_index <- c(487, 617)
+
+
+# impute relevant stats for RBs with missing stats
+
+
+target_index <- union(fumb_index, tack_index)
+target_index <- target_index[!target_index %in% c(1,2)]
+
+   # if data is null, replace with mean of FS stats
+df[df$pos == "FS", target_index ] <- df[df$pos == "FS", target_index] %>% mutate_all(~replace(., is.na(.), as.integer(mean(., na.rm = TRUE)))) 
+
+
+# impute missing experience
+
+df[df$pos == "FS", ] <- fix_exp(df[df$pos == "FS", ])
+
+```
+
+
+#next pos = LT
+#relevant stats: none
+
+```{r}
+
+# impute experience
+
+df[df$pos == "LT", ] <- fix_exp(df[df$pos == "LT",])
+
+```
+
+
+#next pos = FB
+#relevant stats: rec_index and rush_index
+
+```{r}
+
+
+na_index <- findna(df, df[df$pos == "FB",])
+
+# there are no players with all null stats
+
+
+# impute experience
+
+df[df$pos == "FB", ] <- fix_exp(df[df$pos == "FB",])
+```
+
+#next pos = S
+#relevant stats: fumb_index, int_index and tack_index
+
+```{r}
+
+
+
+na_index <- findna(df, df[df$pos == "S",])
+
+# only one player with null stats.
+# verified they recorded no stats in 2020
+
+# impute experience
+
+df[df$pos == "S", ] <- fix_exp(df[df$pos == "S", ])
+
+```
+
+#next pos = P
+#relevant stats: ko_index and punt_index
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "P",])
+
+# there are no Ps with null stats
+
+
+# impute experience
+
+df[df$pos == "P", ] <- fix_exp(df[df$pos == "P", ])
+
+```
+
+
+#next pos = SS
+#relevant stats: fumb_index and tack_index
+
+```{r}
+
+na_index <- findna(df, df[df$pos == "SS",])
+
+# one player with null stats. Played limited games and recorded tackle stats. Will replace
+
+player_index <- c(292)
+
+replace_tack <- c(10, 2, 8, 0)
+
+df[player_index,] <- replace(df[player_index,], tack_index[3:length(tack_index)], replace_tack)
+
+
+# impute experience
+
+df[df$pos == "SS",] <- fix_exp(df[df$pos == "SS",])
+
+
+
+```
+
+#next pos = RT
+#relevant stats: none
+
+```{r}
+
+# impute experience
+
+df[df$pos == "RT",] <- fix_exp(df[df$pos == "RT", ])
+
+```
+
+#next pos = LB
+
+```{r}
+
+#there is only one LB player, and that player recorded no stats in 2020. Player has experience already.
+
+# pos LB needs no work
+
+
+
+```
+
+#next pos = K
+
+```{r}
+
+
+na_index <- findna(df, df[df$pos == "K",])
+
+# no players with null stats
+
+# impute experience
+
+df[df$pos == "K", ] <- fix_exp(df[df$pos == "K",])
+```
+
+#last pos = T
+
+```{r}
+
+
+na_index <- findna(df, df[df$pos == "T",])
+
+# only one player is a pos = T, they recorded no stats in 2020
+
+# player has null experience, will correct that manually
+
+player_index <- c(512)
+
+df[player_index,]$exp <- 3
+
+```
+
+#exp and relevant stats have been addressed for all positions
+
+
+```{r}
+
+# there are some field goal stats that are fractions represented as strings.
+# split the string to create new variables to hold both field goals made and attempts
+
+# variable fg10_19 is split to become fg1_19_made and fg10_19_att
+df[df$pos == "K", c(which(names(df) == "fg1_19"), ncol(df)+1) ] <- str_split_fixed(df[df$pos == "K",]$fg1_19, "/", 2)
+
+names(df)[names(df) %in% c("fg1_19")] <- c("fg1_19_made")
+
+names(df)[ncol(df)] <- c("fg1_19_att")
+
+
+
+# variable fg20_29 is split to become fg20_29_made and fg20_29_att
+df[df$pos == "K", c(which(names(df) == "fg20_29"), ncol(df)+1) ] <- str_split_fixed(df[df$pos == "K",]$fg20_29, "/", 2)
+
+names(df)[names(df) %in% c("fg20_29")] <- c("fg20_29_made")
+
+names(df)[ncol(df)] <- c("fg20_29_att")
+
+
+# same for fg30_39
+df[df$pos == "K",  c(which(names(df) == "fg30_39"), ncol(df)+1) ] <- str_split_fixed(df[df$pos == "K",]$fg30_39, "/", 2)
+
+names(df)[names(df) %in% c("fg30_39")] <- c("fg30_39_made")
+
+names(df)[ncol(df)] <- c("fg30_39_att")
+
+
+# same for fg40_49
+df[df$pos == "K",  c(which(names(df) == "fg40_49"), ncol(df)+1) ] <- str_split_fixed(df[df$pos == "K",]$fg40_49, "/", 2)
+
+names(df)[names(df) %in% c("fg40_49")] <- c("fg40_49_made")
+
+names(df)[ncol(df)] <- c("fg40_49_att")
+
+
+# same for fg50_59
+df[df$pos == "K",  c(which(names(df) == "fg50_59"), ncol(df)+1) ] <- str_split_fixed(df[df$pos == "K",]$fg50_59, "/", 2)
+
+names(df)[names(df) %in% c("fg50_59")] <- c("fg50_59_made")
+
+names(df)[ncol(df)] <- c("fg50_59_att")
+
+
+# same for fg60_69
+df[df$pos == "K",  c(which(names(df) == "fg60_69"), ncol(df)+1) ] <- str_split_fixed(df[df$pos == "K",]$fg60_69, "/", 2)
+
+names(df)[names(df) %in% c("fg60_69")] <- c("fg60_69_made")
+
+names(df)[ncol(df)] <- c("fg60_69_att")
+
+
+```
+
+
+
+```{r}
+# re-order the columns so all fg_stats are grouped together
+
+df <- df[, c(1:(which(names(df)=="fg60_69_made")), (ncol(df) - 5):ncol(df), (which(names(df)=="fg_long")):(ncol(df)-5))]
+
+```
+
+
+#variable pen_type data engineering
+
+```{r}
+
+# create helper function to check vector (pen_type variable list)
+# target is a string to be found in string elements of list
+# if target is found, return sub string
+# high level: target will be a penalty as written in the pen_type variable, if the penalty is found, function will return the number of those penalties. If not found, will return 0 (all as a string)
+
+find_pen <- function(df, target) {
+  
+  
+  # note: the sub string to be returned is always a certain number of characters after the target string is found
+  
+  return(ifelse(str_detect(df, target), substring( df, str_locate(df, target) + nchar(gsub(pattern = ('\\'), replacement =  "", x = target, fixed = T)), str_locate(df, target) + nchar(gsub(pattern = ('\\'), replacement =  "", x = target, fixed = T))), "0"
+))
+  
+}
+
+
+# create list which  will be the names of our new variables from the data engineering, found by examining pen_type
+
+pen_names <-  c("pen_facemask", "pen_defint", "pen_defhol", "pen_illhand", "pen_horscol",  "pen_targ", "pen_roughing", "pen_neutzone", "pen_unsports", "pen_inellpass", "pen_offhold", "pen_falsestart", "pen_unnesrough", "pen_illcontact"," pen_illbwaist", "pen_disqau", "pen_chopblock", "pen_blindblock", "pen_offinterf", "pen_intground", "pen_freekick", "pen_defoff", "pen_forwpass", "pen_encroach", "pen_illform", "pen_illmotion")
+
+
+# pen_key will be the target strings to look for in pen_type, special characters must be noted to work with mutate, and but also must be removed when finding sub string representing the number of penalties
+# also must be in the same order as pen_names above
+
+pen_key <- c("Face Mask \\(15 Yards\\) \\(", "Defensive Pass Interference \\(", "Defensive Holding \\(", "Illegal Use of Hands \\(", "Horse Collar Tackle \\(", "Lowering the Head to Initiate Contact \\(", "Roughing the Passer \\(", "Neutral Zone Infraction \\(", "Unsportsmanlike Conduct \\(", "Ineligible Downfield Pass \\(", "Offensive Holding \\(", "False Start \\(", "Unnecessary Roughness \\(", "Illegal Contact \\(", "Block Above the Waist \\(", "Disqualification \\(", "Chop Block \\(", "Illegal Blindside Block \\(", "Offensive Pass Interference \\(", "Intentional Grounding \\(", "Offside on Free Kick \\(", "Defensive Offside \\(", "Illegal Forward Pass \\(", "Encroachment \\(", "Illegal Formation \\(", "Illegal Motion \\(")
+
+
+# for loop to add new variables and values
+
+for (i in 1:length(pen_names)) {
+  
+  df[,pen_names[i]] <- find_pen(df$pen_type, pen_key[i])
+  
+}
+
+
+```
+
+
+
+
+
+```{r}
+
+# remove pen_type variable
+# it isn't needed anymore 
+
+df <- subset(df, select = -pen_type)
+
+```
+
+
+
+#remaining null data will be replaced with 0
+
+
+```{r}
+
+# replace all remaining NA for all stats with 0
+df <- df %>% mutate_all(~replace(., is.na(.), 0))
+
+```
+
+
+#convert certain character type columns to integeters 
+
+```{r}
+
+# change stats that are strings to integers
+
+ df <- df %>% mutate(across(c(5:ncol(df)) & where(is.character), as.integer))
+
+```
+
+#save clean data
+
+```{r}
+
+# export data to cvs files
+
+write.csv(df, "datasets/NFL_2020_stats_clean.csv", row.names=FALSE)
+
+```
+
