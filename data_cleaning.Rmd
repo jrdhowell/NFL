@@ -16,7 +16,8 @@ output: html_document
 #found per position by using the mean of the data from other players in the same 
 #position. 
 #Items to note: (a) the number of players from each position with null data that 
-#should have recorded data, if any, was relatively small and estimated to be <10%. (b) #only position relevant stats were imputed (c) the mean was used instead of the mode 
+#should have recorded data, if any, was relatively small and estimated to be <10%. 
+#(b) only position relevant stats were imputed (c) the mean was used instead of the mode 
 #because it was observed that players that should have had stats generally saw 
 #substantial playing time. The mean seemed to be a better approximate for the missing 
 #data.
@@ -75,7 +76,25 @@ df <- read.csv(file = "datasets/NFL_2020_stats.csv")
 
 
 
-names <- c("player", "team", "pos", "base", "exp", "fg_make", "fg_att", "fg_per", "fg1_19", "fg20_29", "fg30_39", "fg40_49", "fg50_59", "fg60_69", "fg_long", "fg_blk", "fumb_force", "fumb_return", "fumb_td", "int", "int_td", "int_yds", "int_lng", "ko", "ko_yds", "ko_ret_yards", "ko_tb", "ko_tb2", "ko_ret_count", "ko_ret_avg", "ko_osk", "ko_osk_rec", "ko_oob", "ko_td", "kor_avg", "kor_ret", "kor_yds", "kor_td", "kor20", "kor40", "kor_long", "kor_fc", "kor_fumb", "pass_yds_tot", "pass_yds_att", "pass_att", "pass_comp", "pass_comp_yds", "pass_td", "pass_int", "pass_rate", "pass_x1st", "pass_x1st_yds", "pass20", "pass40", "pass_lng", "pass_sck", "pass_scky", "pr_avg", "pr_ret", "pr_yds", "pr_et", "pr20", "pr40", "pr_lng", "pr_fc", "pr_fumb", "punt_avg", "punt_net_avg", "punt_net_yds", "punt", "punt_long", "punt_yds", "punt20", "punt_OOB", "punt_dn", "punt_tb", "punt_fc", "punt_ret", "punt_rety", "punt_td", "punt_blk", "rec", "rec_yds", "rec_td", "rec20", "rec40", "rec_lng", "rec1", "recx1st", "rec_fum", "rec_yac", "rec_tgt", "rush_yds", "rush_att", "rush_td", "rush20", "rush40", "rush_lng", "rush_1", "rush1st", "rush_fum_rush", "tack_comb", "tack_ass", "tack_solo", "tack_sck", "pen_pen", "pen_yds", "pen_dec", "pen_offset", "pen_totflags", "pen_presnap", "pen_game", "pen_ydsgame", "pen_ofteam", "pen_type")
+names <- c("player", "team", "pos", "base", "exp", "fg_make", "fg_att", "fg_per", 
+           "fg1_19", "fg20_29", "fg30_39", "fg40_49", "fg50_59", "fg60_69", "fg_long", 
+           "fg_blk", "fumb_force", "fumb_return", "fumb_td", "int", "int_td", 
+           "int_yds", "int_lng", "ko", "ko_yds", "ko_ret_yards", "ko_tb", "ko_tb2", 
+           "ko_ret_count", "ko_ret_avg", "ko_osk", "ko_osk_rec", "ko_oob", "ko_td", 
+           "kor_avg", "kor_ret", "kor_yds", "kor_td", "kor20", "kor40", "kor_long", 
+           "kor_fc", "kor_fumb", "pass_yds_tot", "pass_yds_att", "pass_att", 
+           "pass_comp", "pass_comp_yds", "pass_td", "pass_int", "pass_rate", 
+           "pass_x1st", "pass_x1st_yds", "pass20", "pass40", "pass_lng", "pass_sck", 
+           "pass_scky", "pr_avg", "pr_ret", "pr_yds", "pr_et", "pr20", "pr40", 
+           "pr_lng", "pr_fc", "pr_fumb", "punt_avg", "punt_net_avg", "punt_net_yds",
+           "punt", "punt_long", "punt_yds", "punt20", "punt_OOB", "punt_dn", 
+           "punt_tb", "punt_fc", "punt_ret", "punt_rety", "punt_td", "punt_blk", 
+           "rec", "rec_yds", "rec_td", "rec20", "rec40", "rec_lng", "rec1", "recx1st", 
+           "rec_fum", "rec_yac", "rec_tgt", "rush_yds", "rush_att", "rush_td", 
+           "rush20", "rush40", "rush_lng", "rush_1", "rush1st", "rush_fum_rush", 
+           "tack_comb", "tack_ass", "tack_solo", "tack_sck", "pen_pen", "pen_yds", 
+           "pen_dec", "pen_offset", "pen_totflags", "pen_presnap", "pen_game", 
+           "pen_ydsgame", "pen_ofteam", "pen_type")
 
 colnames(df) <- names
 
@@ -841,7 +860,9 @@ df <- df[, c(1:(which(names(df)=="fg60_69_made")), (ncol(df) - 5):ncol(df), (whi
 # create helper function to check vector (pen_type variable list)
 # target is a string to be found in string elements of list
 # if target is found, return sub string
-# high level: target will be a penalty as written in the pen_type variable, if the penalty is found, function will return the number of those penalties. If not found, will return 0 (all as a string)
+# high level: target will be a penalty as written in the pen_type variable, if the 
+#penalty is found, function will return the number of those penalties. If not found, 
+#will return 0 (all as a string)
 
 find_pen <- function(df, target) {
   
