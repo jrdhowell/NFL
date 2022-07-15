@@ -3,7 +3,18 @@ title: "R Notebook"
 output: html_notebook
 ---
 
- 
+# The main objective is to merge all of our data. The 'Player' variable will be our identifier variable for the data set and will be used as the common key variable to merge the data sets. Our penatlies stas did not contain the entire player name so that will be accounted for.
+
+# The 'base' variable in dataframe df will be the target variable when it comes to modeling, so df will be the starting dataframe to which other data sets will be merged.
+
+# There are a couple things that need to be addressed: 
+
+# (1) Make any duplicate entries in the 'Player' variable in df unique.
+# (2) Check for any of the 'Player' values addressed in (1) in any of the data sets to be added, and address those if possible
+# (3) Check for any duplicate values, or NULL data, in the 'Player' variable in the data sets to be added, and address
+# (4) Add a suffix to the non-'Player' variables in the additional data sets incase there are any matching variable names among the datasets and also for ease of use (for example, 'Avg' is seen as a variable name in multiple data sets)
+# (5) After data is combined, export the data in a new .csv file
+
 
 ```{r}
 
@@ -46,20 +57,10 @@ df_rush <- read.csv(file = "datasets/stats_rush_2020.csv")
 
 df_tack <- read.csv(file = "datasets/stats_tack_2020.csv") 
 
+df_pen <- read.csv(file = "datasets/stats_pen_2020.csv")
+
 ```
 
-
-# The main objective is to merge all of our data. The 'Player' variable will be our identifier variable and will be used as the common variable to merge the data sets.
-
-# The 'base' variable in dataframe df will be the target variable, so df will be the starting dataframe to which other data sets will be merged.
-
-# There are a couple things that need to be addressed as the other data sets are merged. 
-
-# (1) Make any duplicate entries in the 'Player' variable in df unique.
-# (2) Check for any of the 'Player' values addressed in (1) in any of the data sets to be added, and address those if possible
-# (3) Check for any duplicate values, or NULL data, in the 'Player' variable in the data sets to be added, and address
-# (4) Add a suffix to the non-'Player' variables in the additional data sets incase there are any matching variables names among the datasets (for example, 'Avg' is seen as a variable name in multiple data sets)
-# (5) After data is combined, export the data in a new .csv file
 
 
 
@@ -196,12 +197,12 @@ df <- merge(x=df, y= df_exp, by="Player", all.x=TRUE)
 
 #since the experience stat is taken from before the 2022 season and other stats data is from the 2020 season, we will remove three years from the experience 
 
-head(df[which(!is.na(df2$exp)),] %>% arrange(exp, desc = FALSE))
+head(df[which(!is.na(df$exp)),] %>% arrange(exp, desc = FALSE))
 
 df$exp <- df$exp - 3
 
 
-head(df[which(!is.na(df2$exp)),] %>% arrange(exp, desc = FALSE))
+head(df[which(!is.na(df$exp)),] %>% arrange(exp, desc = FALSE))
 ```
 
 # Processing and adding df_fg data
@@ -345,7 +346,7 @@ df <- merge(x=df, y = df_int, by = "Player", all.x = TRUE)
 
 # add suffix to df_ko variables
 
-change_names(df_ko, "ko")
+df_ko <- change_names(df_ko, "ko")
 
 ```
 
@@ -403,7 +404,7 @@ paste("There are ", length(df_kor$Player) - length(unique(df_kor$Player)), " dup
 
 # left join df and df_int
 
-df <- merge(x=df, y = df_int, by = "Player", all.x = TRUE)
+df <- merge(x=df, y = df_kor, by = "Player", all.x = TRUE)
 ```
 
 
@@ -463,7 +464,7 @@ df <- merge(x=df, y=df_pass, by = "Player", all.x = TRUE)
 
 ```{r}
 # add suffic to variable names
-df_pr <- change_names(df_pr, "pass")
+df_pr <- change_names(df_pr, "pr")
 
 
 # check for Players in df_pass that match our master duplicate list to address if needed
@@ -594,7 +595,7 @@ df_rec[df_rush$Player == "Chris Jones", ]$Player <- dups_fixed[2, ]$Player
 ```{r}
 
 # left join
-df <- merge(x=df, y=df_rec, by="Player", all.x = TRUE)
+df <- merge(x=df, y=df_rush, by="Player", all.x = TRUE)
 ```
 
 # Processing and adding df_tack data
@@ -612,7 +613,7 @@ df_tack <- subset(df_tack, Player!= "")
 rownames(df_tack) <- NULL
 
 
-# check for Players in df_pass that match our master duplicate list to address if needed
+# check for Players in df_tack that match our master duplicate list to address if needed
 find_dups(df_tack, dups)
 
 
@@ -641,20 +642,6 @@ df_tack[df_tack$Player == "Ryan Griffin", ]$Player <- dups_fixed[6,]$Player
 ```
 
 
-```{r}
-
-# addressing the duplicates in df_pass
-
-dups_temp <-  df_pass[duplicated(df_pass$Player), ]
-
-# again dups_temp is a portion of df_fumb of only entries with duplicate Players
-
-dups_temp <- df_pass[df_pass$Player %in% dups_temp$Player,]
-
-
-```
-
-
 
 ```{r}
 # address duplicate player names 
@@ -667,6 +654,8 @@ rownames(df_tack) <- NULL
 
 paste("There are ", length(df_tack$Player) - length(unique(df_tack$Player)), " duplicate player names")
 ```
+
+
 ```{r}
 #set up a list of our remaining duplicates in df_tack to see how to address
 
@@ -705,6 +694,98 @@ df_tack <- df_tack[-remove,]
 # left join data
 df <- merge(x=df, y=df_tack, by="Player", all.x = TRUE)
 ```
+
+
+# Processing and adding penalty data
+
+```{r}
+
+# need to create a variable target1 in both data frames
+# target1 will be the first letter of player name, then the last name, then the team all separated by " "
+
+#example "P Peterson ARI"
+ 
+
+# helper function to revalue variable values
+#revalue function
+my_revalue <- function(x, ...){
+  reval <- list(...)
+
+  from <- names(reval)
+  to <- unlist(reval)
+
+  out <- eval(parse(text= paste0("{", paste0(paste0("x[x ==", "'", from,"'", "]", "<-", "'", to, "'"), collapse= ";"), ";x", "}")))
+
+  return(out)
+}
+
+
+#change data in variable Team in penalties to match df$team
+
+df_pen$Team <- my_revalue(df_pen$Team, "Arizona" = "ARI", "Atlanta"="ATL", "Baltimore"="BAL", "Buffalo" ="BUF", "Carolina" = "CAR", "Chicago"="CHI", "Cincinnati"="CHI", "Cincinnati"="CIN", "Cleveland"="CLE", "Dallas"="DAL", "Denver"="DEN", "Detroit"="DET", "Green Bay" = "GB", "Houston" = "HOU", "Indianapolis" = "IND", "Jacksonville" = "JAC", "Kansas City" = "KC", "LA Chargers" = "LAC", "LA Rams" = "LAR", "Las Vegas" = "LV", "Miami" = "MIA", "Minnesota" = "MIN", "New England" = "NE", "New Orleans" = "NO", "N.Y. Giants" = "NYG", "N.Y. Jets" = "NYJ", "Philadelphia" = "PHI", "Pittsburgh" = "PIT", "Seattle" = "SEA", "San Francisco" = "SF", "Tampa Bay"= "TB", "Tennessee" = "TEN", "Washington" = "WAS")
+
+
+
+# create target1 and target2 variables in df_pen for first letter and last name respectively
+df_pen <- df_pen %>% mutate(target1 = substring(df_pen$Player, 1, 1), target2 = substring(df_pen$Player, 3, length(df_pen$Player)))
+
+
+# correct other stats names so there is no duplicate in the df
+names(df_pen)[4:(ncol(df_pen)-2)] <- paste(names(df_pen)[4:(ncol(df_pen)-2)], "_pen", sep = "")
+
+# combine elements for target1
+df_pen$target1 <- paste(df_pen$target1, df_pen$target2, df_pen$Team, sep = " ")
+
+#columns we don't need
+col_remove <- c("Player", "target2", "Team", "Pos")
+
+#remove the columns
+df_pen <- df_pen[,!(names(df_pen) %in% col_remove)]
+ 
+
+
+```
+
+
+```{r}
+
+# create new variables of first and last name in df
+df[,c(ncol(df) + 1, ncol(df) + 2)] <-  str_split_fixed(df$Player, " ", 2)
+
+
+# name our new variables
+names(df)[(ncol(df) - 1):ncol(df)] <- c("target1", "target2")
+
+# only get the first letter of first name
+df$target1 <- substr(df$target1, 1, 1)
+
+# combine elements for new target1
+df$target1 <- paste(df$target1, df$target2, df$team, sep = " ")
+
+
+```
+
+
+
+```{r}
+
+# left join data by target1
+df <- merge(x=df, y=df_pen, by="target1", all.x = TRUE)
+
+
+# remove target1
+col_remove <- c("target1", "target2")
+
+df <- df[,!(names(df) %in% col_remove)]
+
+# sort by the player name
+df <- df[order(df$Player),]
+
+# reset index
+row.names(df) <- NULL
+```
+
+
 
 
 # All data has be combined, now export the data to new .csv file
