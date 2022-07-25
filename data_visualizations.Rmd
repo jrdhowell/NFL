@@ -1,0 +1,386 @@
+---
+title: "data_visualizations"
+output: html_document
+---
+
+# The below codes makes various visualizations, looking at certain distributions and relationships among the variables. 
+
+# Main observations: 
+
+# (1) There is no linearity between target variable and independent variables.
+
+# (2) There is colinearity found among the independent variables.
+
+
+```{r}
+#load packages
+load.libraries <- c('tidyverse', 'ggplot2', 'corrplot')
+install.lib <- load.libraries[!load.libraries %in% installed.packages()]
+for(libs in install.lib) install.packages(libs, dependences = TRUE)
+sapply(load.libraries, require, character = TRUE)
+```
+
+#import data
+
+```{r}
+
+df <- read.csv(file = "datasets/NFL_2020_stats_clean.csv") 
+
+```
+
+
+
+
+
+
+```{r}
+# code to see the column names
+#colnames(df)
+
+
+# create a list 'index_stats' to keep index of certain stats catagories 
+
+# stats can be grouped by the following
+key_stats <- c("fg", "fumb", "int", "ko", "kor", "pass", "pr", "punt", 
+             "rec", "rush", "tack", "pen")
+
+# create list
+index_stats <- list()
+
+
+
+
+for (i in 1:length(key_stats)) { # loop to create index list
+  
+      # element is the player, team and relevant stats 
+      # fround by seeking key word in variable names
+      element <- c(1, 2, which(str_detect(names(df), as.character(paste(key_stats[i], "_", sep = "")))))
+      
+      # add to list
+      index_stats[[i]] <- element
+  
+  }
+
+
+# add names to list
+names(index_stats) <- key_stats
+
+
+
+```
+
+# Distributions / Histrograms
+
+```{r}
+
+
+
+
+df %>% 
+  ggplot(aes(x=base)) + 
+  geom_histogram(binwidth = 1000000, color = "red", fill="white") +
+  scale_x_continuous(name="Salary (base contract value)", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Distribution of NFL Salaries for Top 1000 Earners (2020)", y = "Player Count") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+
+  
+
+```
+
+```{r}
+
+
+df %>%
+  summarize(player, payscale = ifelse(df$base > 20*10**6, "<$20M", ifelse(df$base > 10*10**6, "$10-20M", "<=$10M" ))) %>% 
+  group_by(payscale) %>%
+  mutate(count = length(player)) %>% 
+  ggplot(aes(x=reorder(payscale, -count))) + 
+  geom_bar(color = "red",fill="white") +
+  labs(title="Distribution of NFL Salaries for Top 1000 Earners (2020)", 
+       x = "Salaries (base contract)",
+       y = "No. of Players") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+
+
+```
+
+
+
+```{r}
+df %>%
+  group_by(pos) %>% 
+  mutate(count = length(player)) %>% 
+  ggplot(aes(x=reorder(pos, -count ))) + 
+  geom_bar(color = "red",
+           fill="white") +
+  labs(title="Position Distribution of NFL Top 1000 Earners (2020)", 
+       x = "Positions",
+       y = "No. of Players") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+
+
+
+```{r}
+df[df$base > (10 * 10**6), ] %>% 
+  group_by(pos) %>% 
+  mutate(count = length(player)) %>% 
+  ggplot(aes(x=reorder(pos, -count))) + 
+  geom_bar(color = "red", fill="white") +
+  labs(title="Positions with of Base Contracts above $10 Million (2020)", y = "No. of Players", x = "Positions") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+
+
+
+```{r}
+df[df$base > (20 * 10**6), ] %>% 
+  group_by(pos) %>% 
+  mutate(count = length(player)) %>% 
+  ggplot(aes(x=reorder(pos, -count)))+ 
+  geom_bar(color = "red", fill="white") + scale_y_continuous(breaks = c(1,2), labels = c("1", "2")) +
+  labs(title="Positions with Base Contracts Above $20 Million (2020)", y = "No. of Players", x = "Positions") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+
+
+
+```{r}
+
+df %>% 
+  group_by(team) %>% 
+  mutate(count = length(player)) %>% 
+  ggplot(aes(x=reorder(team, -count)))+ 
+  geom_bar(color = "red", fill="white") +
+  labs(title="Team Distribution of Top Earners (2020)", y = "No. of Players", x = "Team") + 
+  theme(axis.text.x=element_text(color = "black", size=14, angle=45, vjust=.8, hjust=0.8), axis.text.y = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24)) 
+
+
+```
+
+```{r}
+
+
+df %>% 
+  ggplot(aes(x=exp)) + 
+  geom_bar(color = "red", fill="white") + 
+  labs(title="NFL Distribution of Experience for Top Earners (2020)", y = "No. of Players", x = "Experience") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+
+
+```
+
+# Box plots
+
+```{r}
+df %>%
+  group_by(pos) %>% 
+  summarise(medianbase = median(base), base) %>% 
+  ggplot(aes(x=reorder(pos, -medianbase), y=base)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=16,
+             outlier.size=1, notch=FALSE, color = "red" ) +
+  scale_y_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) +
+  labs(title="Base Contract Value by Position (2020)", 
+       x = "Position") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+
+
+```{r}
+df %>%
+  group_by(team) %>% 
+  summarise(medianbase = median(base), base) %>%
+  ggplot(aes(x=reorder(team, -medianbase), y=base)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=16,
+             outlier.size=1, notch=FALSE, color = "red" ) +
+  scale_y_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) +
+  labs(title="Base Contract Value by Team (2000)", 
+       x = "Position") + 
+  theme(axis.text.x=element_text(color = "black", size=14, angle=45, vjust=.8, hjust=0.8), axis.text.y=element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24)) 
+
+```
+
+
+
+
+
+
+```{r}
+
+df %>%
+  mutate(exp = as.factor(exp)) %>% 
+  ggplot(aes(x=exp, y=base, group_by = exp)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=16,
+             outlier.size=1, notch=FALSE, color = "red" ) +
+  scale_y_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) +
+  labs(title="Base Contract Value by Experience (2020)", 
+       x = "Experience (Years)") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+
+# scatter plots
+
+
+
+```{r}
+
+df %>% 
+  ggplot(aes(x=exp, y=base)) +
+  geom_point(color = "Red") +
+  scale_y_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Experience and Base Contract among Top Earners (2020)", x = "Experience (Years)") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+
+```
+
+
+
+
+# Look closer at the data for QBs
+
+
+```{r}
+
+df[df$pos == "QB", ] %>% 
+  ggplot(aes(x=pass_comp_per)) +
+  geom_histogram(binwidth = 5, color = "red", fill="white") +
+  scale_x_continuous(name="Completion Percentage") + 
+  labs(title="Pass Completion Percentage among QBs (2020)", y = "Player Count") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+
+```
+```{r}
+df[df$pos == "QB", ] %>% 
+  ggplot(aes(x=base, y=pass_td)) +
+  geom_point() +
+  scale_x_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Passing TDs and Base Contract among QBs (2020)", y = "Passing Touchdowns") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+```{r}
+df[df$pos == "QB", ] %>% 
+  ggplot(aes(x=base, y=pass_yds_tot)) +
+  geom_point() +
+  scale_x_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Passing Yards and Base Contract among QBs (2020)", y = "Passing Yds") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+```{r}
+df[df$pos == "QB", ] %>% 
+  ggplot(aes(x=base, y=pass_comp_per)) +
+  geom_point() +
+  scale_x_continuous(name="Base", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Pass Completion Percentage and Base Contract among QBs (2020)", y = "Completion Perc") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+```{r}
+df[df$pos == "QB", ] %>% 
+  ggplot(aes(x=base, y=pass_rate)) +
+  geom_point() +
+  scale_x_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Pass Rating and Base Contract among QBs (2020)", y = "Pass Rating") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+```{r}
+df[df$pos == "QB", ] %>% 
+  ggplot(aes(x=base, y=exp)) +
+  geom_point() +
+  scale_x_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Experience and Base Contract among QBs (2020)", y = "Passing Touchdowns") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+```
+
+```{r}
+df[df$pos == "QB", ] %>% 
+  mutate(pass_rate = cut(pass_rate, breaks=c(0,40,80,120,160), labels=c("<40", "40-80", "80-120", ">120"), right=FALSE)) %>% 
+             ggplot(aes(x=base, y=pass_rate)) +
+  geom_point() +
+  scale_x_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
+  labs(title="Pass Rating and Base Contract amoung QBs (2020)", y = "Pass Rating") +
+  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
+
+```
+# Correlation plots
+
+
+```{r}
+
+df_temp <- df[,index_stats$pass]
+num_cols <- unlist(lapply(df_temp, is.numeric))
+num_rows <- which(df$pass_yds_tot > 0)
+corrplot(cor(df_temp[, num_cols]), method = "number")
+```
+
+
+```{r}
+df_temp <- df[,index_stats$tack]
+num_cols <- unlist(lapply(df_temp, is.numeric))
+num_rows <- which(df$tack_comb > 0)
+corrplot(cor(df_temp[, num_cols]), method = "number")
+```
+
+```{r}
+df_temp <- df[,index_stats$fg]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$fg_att > 0)
+corrplot(cor(df_temp[, num_cols]), method = "number")
+```
+
+
+```{r}
+df_temp <- df[,index_stats$fumb]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$fumb_force > 0 | df$fumb_return > 0 | df$fumb_td >0)
+corrplot(cor(df_temp[, num_cols]), method = "number")
+```
+
+```{r}
+df_temp <- df[,index_stats$int]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$int_int > 0)
+corrplot(cor(df_temp[, num_cols]), method = "number")
+```
+
+```{r}
+df_temp <- df[,index_stats$kor]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$kor_avg > 0)
+corrplot(cor(df_temp[num_rows, num_cols]), method = "number")
+```
+
+
+```{r}
+df_temp <- df[,index_stats$ko]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$ko_ko > 0)
+corrplot(cor(df_temp[, num_cols]), method = "number")
+```
+
+```{r}
+df_temp <- df[,index_stats$pr]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$pr_yds > 0)
+corrplot(cor(df_temp[num_rows, num_cols]), method = "number")
+```
+
+```{r}
+df_temp <- df[,index_stats$rec]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$rec_yds > 0)
+corrplot(cor(df_temp[num_rows, num_cols]), method = "number")
+```
+
+```{r}
+df_temp <- df[,index_stats$rush]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$rush_yds > 0)
+corrplot(cor(df_temp[num_rows, num_cols]), method = "number")
+```
+
+```{r}
+df_temp <- df[,index_stats$pen]
+num_cols <- unlist(lapply(df_temp, is.numeric)) 
+num_rows <- which(df$pen_pen > 0)
+corrplot(cor(df_temp[num_rows, num_cols]), method = "number")
+```
+
