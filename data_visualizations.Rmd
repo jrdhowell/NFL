@@ -286,7 +286,7 @@ df[df$pos == "QB", ] %>%
   ggplot(aes(x=base, y=exp)) +
   geom_point() +
   scale_x_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) + 
-  labs(title="Experience and Base Contract among QBs (2020)", y = "Passing Touchdowns") +
+  labs(title="Experience and Base Contract among QBs (2020)", y = "Experience") +
   theme(axis.text = element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24))
 ```
 
