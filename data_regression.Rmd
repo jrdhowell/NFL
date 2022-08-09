@@ -10,8 +10,34 @@ install.lib <- load.libraries[!load.libraries %in% installed.packages()]
 for(libs in install.lib) install.packages(libs, dependences = TRUE)
 sapply(load.libraries, require, character = TRUE)
 
+# global formatting 
 options(scipen = 100)
 ```
+
+```{r}
+
+find_r <- function(prediction, target, k){ 
+    
+    n <- length(target)
+
+    #find SST and SSE
+    sst <- sum((target - mean(target))^2)
+    sse <- sum((prediction - target)^2)
+    
+    #find R-Squared
+    rsq <- 1 - sse/sst
+    
+    arsq <- 1 - (((1-rsq) *(n-1)) / (n - k - 1))
+    
+    results <- c(rsq, arsq)
+    return(results)
+    
+    
+}
+```
+
+
+
 
 #import data
 
@@ -23,6 +49,8 @@ df <- read.csv(file = "datasets/NFL_2020_stats_clean.csv")
 ```
 
 # since there is no linearity between predictor and target variables, we will turn all predictor variables into categorical / factor type variables.
+
+
 
 
 ```{r}
@@ -105,8 +133,8 @@ df <- df %>%
                             breaks=c(-100, 0, 5, 10, 100),
                             labels=c("0", "1-5", "6-10", "10+"))
             )
-            
-            
+
+
 
 # only look at base contracts below $5M.
             
@@ -115,6 +143,21 @@ df <- df[df$base < 5000000,]
 
 # take the log of target value for more accurate modeling             
 df$base <- log(df$base)
+
+
+
+# remove all collinearities and save in df_temp
+
+df_temp <- df %>% 
+  summarise(base, team, pos, exp, fg_per, int_int, ko_yds, kor_avg, 
+            pass_td, pass_int, pass_rating, pen_yds, pen_presnap, 
+            rec_yds,  rush_yds, rush_fumble,  tack_comb, tack_sack)
+            
+
+            
+            
+            
+
 
 
 ```
@@ -134,23 +177,51 @@ set.seed(1)
 trainIndex <- createDataPartition(df$base, p = .7,
                                   list = FALSE,
                                   times = 1)
+
+# train/test set with all data
 train <- df[ trainIndex,]
 test <- df[-trainIndex,]
+
+
+# train/test set with data with no collinearity
+train_temp <- df_temp[ trainIndex,]
+test_temp <- df_temp[-trainIndex,]
+
+
+
+# make sure all factor levels are in train data set
 
 totalData <- rbind(train,test)
 for (x in 1:length(names(totalData))) {
   levels(train[, x]) <- levels(totalData[, x])
+}
+
+totalData <- rbind(train_temp,test_temp)
+for (x in 1:length(names(totalData))) {
+  levels(train_temp[, x]) <- levels(totalData[, x])
 }
 ```
 
 # Fit an Analysis of Variance Model
 
 ```{r}
-fit.aov <- aov(base ~ ., data = train)
 
+# Analysis of varience model
+
+fit.aov <- aov(base ~ ., data = train_temp)
+
+
+# look at model
 print(fit.aov)
 
+# look at model
 summary(fit.aov)
+
+
+
+# find r-squared
+
+find_r(predict(fit.aov, train_temp, interval="confidence"), train_temp$base, (ncol(train_temp)-1))
 
 # can compare predictions and actual results with below code
 
@@ -167,7 +238,7 @@ summary(fit.aov)
 
 
 ```
-# Random Forrest Regression Model
+# Random Forest Regression Model
 
 
 ```{r}
@@ -175,11 +246,19 @@ summary(fit.aov)
 
 fit.forest <- randomForest(base~., data = train)
 
+# look at model
 summary(fit.forest)
 
+# look at model
 print(fit.forest)
 
+# plot importance
 varImpPlot(fit.forest)
+
+# find r-squared
+n <- ncol(train) - 1
+find_r(predict(fit.forest, train, interval = "confidence"), train$base, n)
+
 
 # following code shows predictions vs. actual data in test data set
 
@@ -207,12 +286,17 @@ x <- data.matrix(train[,c(2:ncol(train))])
 # target variable 
 y <- train$base
 
+#cross validation
 fit.lasso <- cv.glmnet(x, y, alpha = 1)
 
+# optimal lambda
 best_lambda <- fit.lasso$lambda.min
 
 best_lambda
 
+
+
+# plot of test MSE by lambda value
 plot(fit.lasso)
 
 ```
@@ -227,16 +311,8 @@ print(fit.lasso)
 ```
 
 ```{r}
-#use fitted best model to make predictions
-y_predicted <- predict(fit.lasso, s = best_lambda, newx = x)
 
-#find SST and SSE
-sst <- sum((y - mean(y))^2)
-sse <- sum((y_predicted - y)^2)
-
-#find R-Squared
-rsq <- 1 - sse/sst
-rsq
+find_r(predict(fit.lasso, s = best_lambda, newx = x), y, n)
 ```
 
 # Predictions with Lasso Regression Model
@@ -284,17 +360,8 @@ print(fit.dt)
 ```
 
 ```{r}
-y_predicted <- predict(fit.dt, train, method = "anova")
-
-
-
-#find SST and SSE
-sst <- sum((y - mean(y))^2)
-sse <- sum((y_predicted - y)^2)
-
-#find R-Squared
-rsq <- 1 - sse/sst
-rsq
+# find r-squared and adjusted r-squared
+find_r (predict(fit.dt, train, method = "anova"), train$base, n)
 
 ```
 
