@@ -1,0 +1,319 @@
+---
+title: "data_regression_modeling"
+output: html_document
+---
+
+```{r}
+#load packages
+load.libraries <- c('tidyverse', 'fastDummies', 'caret', 'janitor', 'randomForest', 'glmnet', 'rpart')
+install.lib <- load.libraries[!load.libraries %in% installed.packages()]
+for(libs in install.lib) install.packages(libs, dependences = TRUE)
+sapply(load.libraries, require, character = TRUE)
+
+options(scipen = 100)
+```
+
+#import data
+
+```{r}
+
+df <- read.csv(file = "datasets/NFL_2020_stats_clean.csv") 
+
+
+```
+
+# since there is no linearity between predictor and target variables, we will turn all predictor variables into categorical / factor type variables.
+
+
+```{r}
+
+df <- df %>% 
+  summarise(base,
+            team = as.factor(team), 
+            pos = as.factor(pos),
+            exp = as.factor(exp),
+            fg_per = cut(fg_per, 
+                         breaks=c(-1, 0, 70, 80, 90, 100), 
+                         labels=c("0", "<=70%", ">70-80%", ">80-90%", ">90-100%")),
+            fg_blk = as.factor(fg_blk),
+            fumb_force = as.factor(fumb_force),
+            fumb_return = as.factor(fumb_return),
+            fumb_td = as.factor(fumb_td),
+            int_int = as.factor(as.integer(int_int)),
+            int_lng = cut(int_lng, 
+                         breaks=c(-100, 0, 15, 30, 60, 100), 
+                         labels=c("0", "1-15", "16-30", "31-60", ">60")),
+            ko_yds = cut(ko_yds, 
+                         breaks=c(-1, 0, 4000, 5000, 6000, 10000), 
+                         labels=c("0", ">0-4000", ">4000-5000", ">5000-6000", ">6000")),
+            ko_osk_rec = as.factor(as.integer(ko_osk_rec)),
+            ko_td = as.factor(as.integer(ko_td)),
+            ko_outbounds = as.factor(as.integer(ko_oob)),
+            kor_avg = cut(kor_avg, 
+                         breaks=c(-1, 0, 10, 20,30,50), 
+                         labels=c("0", ">0-10", ">10-20", ">20-30", ">30")),
+            kor_yds = cut(kor_yds, 
+                         breaks=c(-1, 0, 250,500,750,1500), 
+                         labels=c("0", "1-250", "251-500", ">501-750", ">750")),
+            kor_td = cut(kor_td,
+                         breaks=c(-1, 0, 5),
+                         labels=c("None", "One or more")),
+            kor_fumb = as.factor(as.integer(kor_fumb)),
+            pass_td = cut(pass_td,
+                          breaks=c(-1, 0, 10, 20, 30, 90),
+                          labels=c("None", "1-10", "11-20", "21-30", "31+")),
+            pass_int = cut(pass_int, 
+                           breaks=c(-1, 0, 5, 10, 20), 
+                           labels=c("0", "1-5", "6-10", "11+")),
+            pass_rating = cut(pass_rate, 
+                              breaks=c(-1, 0, 50, 70, 90, 120, 200), 
+                              labels=c("0", ">0-50", ">50-70", ">70-90", ">90-120", "120+")),
+            pen_penalties = cut(pen_pen,
+                                breaks=c(-1, 0, 3,6,9,20),
+                                labels=c("0", "0-3", "4-6", "7-9", "10+")),
+            pen_yds = cut(pen_yds,
+                          breaks=c(-1, 0, 30, 60, 90, 150),
+                          labels=c("0", "1-30","31-60","61-90", "91+")),
+            pen_presnap = as.factor(pen_presnap),
+            pr_avg = cut(pr_avg,
+                         breaks = c(-100, 0, 10, 20, 150),
+                         labels=c("0", "1-10", "11-20", "21+")),
+            pr_yds = cut(pr_yds,
+                         breaks = c(-100, 0, 100, 200, 300, 1000),
+                         labels=c("0", "1-100", "101-200", "201-300", "201+")),
+            pr_long = cut(pr_lng,
+                         breaks = c(-100, 0, 20, 50, 150),
+                         labels=c("0", "0-20", "21-50", "50+")),
+            pr_fumb = cut(pr_fumb,
+                          breaks = c(-100, 0, 100),
+                          labels = c("None", "One or more")),
+            rec_yds = cut(rec_yds,
+                         breaks = c(-100, 0, 250, 500, 750, 1000, 2000),
+                         labels=c("0", "1-250", "251-500", "501-750", "750-1000", "1000+")),
+            rec_fumble = as.factor(as.integer(rec_fum)),
+            rush_yds = cut(rush_yds,
+                           breaks = c(-100, 0, 250, 500, 750, 1000, 1500, 2500),
+                           labels=c("0", "1-250", "251-500", "501-750", "750-1000", "1001-1500", "1500+")),
+            rush_fumble = cut(rush_fum_rush,
+                              breaks = c(0, 1, 2, 3, 4, 5, 6, 10),
+                              labels=c("0", "1", "2", "3", "4", "5", "6+"),
+                              right = FALSE),
+            tack_comb = cut(tack_comb,
+                              breaks = c(-100, 0, 50, 100, 500),
+                              labels=c("0", "1-50", "51-100", "101+")),
+            tack_sack = cut(tack_sck,
+                            breaks=c(-100, 0, 5, 10, 100),
+                            labels=c("0", "1-5", "6-10", "10+"))
+            )
+            
+            
+
+# only look at base contracts below $5M.
+            
+df <- df[df$base < 5000000,]
+
+
+# take the log of target value for more accurate modeling             
+df$base <- log(df$base)
+
+
+```
+
+# look at our new base variable data
+
+```{r}
+df %>% summarise(maxBase = max(base), minBase = min(base), baseRange = maxBase - minBase)
+
+baseRange <- max(df$base) - min(df$base)
+```
+# partition the data for train / test sets
+
+```{r}
+set.seed(1)
+                  
+trainIndex <- createDataPartition(df$base, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+train <- df[ trainIndex,]
+test <- df[-trainIndex,]
+
+totalData <- rbind(train,test)
+for (x in 1:length(names(totalData))) {
+  levels(train[, x]) <- levels(totalData[, x])
+}
+```
+
+# Fit an Analysis of Variance Model
+
+```{r}
+fit.aov <- aov(base ~ ., data = train)
+
+print(fit.aov)
+
+summary(fit.aov)
+
+# can compare predictions and actual results with below code
+
+#fit.aov$xlevels <- Map(union, fit.aov$xlevels, lapply(test[,c(2:ncol(test))], unique))
+
+#prediction <- as.double(predict(fit.aov, test, interval="confidence"))
+
+#actual <- test %>% 
+ # summarise(base)
+
+#temp <- cbind(prediction, actual)
+
+#temp %>% summarise(prediction, base, diff_dollars = exp(prediction) - exp(base))
+
+
+```
+# Random Forrest Regression Model
+
+
+```{r}
+
+
+fit.forest <- randomForest(base~., data = train)
+
+summary(fit.forest)
+
+print(fit.forest)
+
+varImpPlot(fit.forest)
+
+# following code shows predictions vs. actual data in test data set
+
+#prediction <- as.double(predict(fit.forest, test, interval = "confidence"))
+
+#actual <- test %>% 
+ # summarise(base)
+
+
+#temp <- cbind(prediction, actual)
+
+#temp %>% summarise(prediction, base, diff_dollars = exp(prediction) - exp(base))
+
+
+```
+# Lasso Regression Model
+
+
+```{r}
+
+# predictor variables
+x <- data.matrix(train[,c(2:ncol(train))])
+
+
+# target variable 
+y <- train$base
+
+fit.lasso <- cv.glmnet(x, y, alpha = 1)
+
+best_lambda <- fit.lasso$lambda.min
+
+best_lambda
+
+plot(fit.lasso)
+
+```
+
+```{r}
+# find best model
+fit.lasso <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+
+coef(fit.lasso)
+
+print(fit.lasso)
+```
+
+```{r}
+#use fitted best model to make predictions
+y_predicted <- predict(fit.lasso, s = best_lambda, newx = x)
+
+#find SST and SSE
+sst <- sum((y - mean(y))^2)
+sse <- sum((y_predicted - y)^2)
+
+#find R-Squared
+rsq <- 1 - sse/sst
+rsq
+```
+
+# Predictions with Lasso Regression Model
+ 
+```{r}
+
+# following code compares predictions from lasso regression model to actual results
+
+#define new observation
+#new = data.matrix(test[,2:ncol(test)])
+
+#use lasso regression model to predict response value
+#prediction <- as.double(predict(fit.lasso, s = best_lambda, newx = new))
+
+#actual <- test %>% 
+#  summarise(base)
+
+
+#temp <- cbind(prediction, actual)
+
+#temp %>% summarise(prediction, base, diff_dollars = exp(prediction) - exp(base))
+
+```
+
+
+# Decision Tree Model
+
+```{r}
+fit.dt <- rpart(base~., method = "anova", data = train)
+
+# Output to be present as PNG file
+png(file = "visualizations/decTreeGFG.png", width = 1200, 
+                            height = 1200)
+  
+# Plot
+plot(fit.dt, uniform = TRUE,
+          main = "Base Contract Decision 
+                 Tree using Regression", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+text(fit.dt, use.n = TRUE, cex = .7, cex.lab=4, cex.axis=4, cex.sub=4)
+  
+# Saving the file
+dev.off()
+
+print(fit.dt)
+```
+
+```{r}
+y_predicted <- predict(fit.dt, train, method = "anova")
+
+
+
+#find SST and SSE
+sst <- sum((y - mean(y))^2)
+sse <- sum((y_predicted - y)^2)
+
+#find R-Squared
+rsq <- 1 - sse/sst
+rsq
+
+```
+
+# Make predictions with Decision Tree Model
+
+```{r}
+# following code compares predictions from decision tree regression model to actual results
+
+
+#use decision tree model to predict response value
+#prediction <- as.double(predict(fit.dt, test, method = "anova"))
+
+#actual <- test %>% 
+ #  summarise(base)
+
+
+#temp <- cbind(prediction, actual)
+
+#temp %>% summarise(prediction, base, diff_dollars = exp(prediction) - exp(base))
+
+```
+
