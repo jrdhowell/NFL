@@ -59,12 +59,12 @@ Created various regression models, including Analysis of Variance, Random Forest
 
 The model with the best results was the Random Forest with an r-squared of 0.79.
 
-Plot of variable importance
+Plot of variable importance:
 ![alt text](https://github.com/jrdhowell/NFL/blob/main/visualizations/RF_importance.png)
 
 
 
 ## Limitations
 
-The biggest limitations are from the data collected. The data set only consisted of the top 1000 earners in the NFL and the penalty data was only avaible for players with a certain number of penalties. 
+The biggest limitations are from the data collected. The data set only consisted of the top 1000 earners in the NFL and the penalty data was only available for players with a certain number of penalties. 
 The data did not encompass all players from 2020 nor all penalites for all the players in the data set.
