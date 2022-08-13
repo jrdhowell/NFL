@@ -63,5 +63,5 @@ The model with the best results was the Random Forest with an r-squared of 0.79.
 
 ## Limitations
 
-The biggest limitations limitations are from the data collected. The data set only consisted of the top 1000 earners in the NFL and the penalty data was only avaible for players with a certain number of penalties. 
+The biggest limitations are from the data collected. The data set only consisted of the top 1000 earners in the NFL and the penalty data was only avaible for players with a certain number of penalties. 
 The data did not encompass all players from 2020 nor all penalites for all the players in the data set.
