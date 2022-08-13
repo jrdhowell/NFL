@@ -39,9 +39,10 @@ The collected data  required preparation and cleaning. The following steps were 
 Created various visualizations to explore the data. Examples:
 
 ![alt text](https://github.com/jrdhowell/NFL/blob/main/visualizations/dist_base.png)
-![alt text](https://github.com/jrdhowell/NFL/blob/main/visualizations/dist_pos.png)
 ![alt text](https://github.com/jrdhowell/NFL/blob/main/visualizations/box_base_team.png)
+![alt text](https://github.com/jrdhowell/NFL/blob/main/visualizations/dist_pos.png)
 ![alt text](https://github.com/jrdhowell/NFL/blob/main/visualizations/scatter_exp_base1.png)
+![alt_text](https://github.com/jrdhowell/NFL/blob/main/visualizations/corrplot_rush.png)
 
 The main observation from the EDA and visualizations is that there is no linearity between any variables and the target variable.
 
@@ -58,7 +59,9 @@ Created various regression models, including Analysis of Variance, Random Forest
 
 The model with the best results was the Random Forest with an r-squared of 0.79.
 
+Plot of variable importance
 ![alt text](https://github.com/jrdhowell/NFL/blob/main/visualizations/RF_importance.png)
+
 
 
 ## Limitations
