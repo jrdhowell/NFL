@@ -30,7 +30,7 @@ The collected data  required preparation and cleaning. The following steps were 
 * Go through each position to impute missing data. Verified with external sources to determine if a player with NULL data actually saw no playing time during the 2020 season.
 * If there was actually stats data in the 2020 season for a player in our set with NULL data, either the actual data was replaced with the NULL data in the cases were it was only one or two players, or the mean of the variable for that positon was used to impute missing data.
 * For the experience variable, the mean of the experience for the position was used to impute the NULL experience data. It was seen that most missing experience data was the result of the player retiring by 2022 which is the year the experience data was collected.
-* No easy way to determine if there was any NULL penalty data should should not have been collected.
+* No easy way to determine if there was any NULL penalty data that should actually have included data.
 * Feature engineered the specific type of penalties were received by players from a description of all penalties a player received. The new features were not used in the model however.
 * Finally, the remaining NULL data was replaced with zero.
 
