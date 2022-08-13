@@ -67,4 +67,4 @@ Plot of variable importance:
 ## Limitations
 
 The biggest limitations are from the data collected. The data set only consisted of the top 1000 earners in the NFL and the penalty data was only available for players with a certain number of penalties. 
-The data did not encompass all players from 2020 nor all penalites for all the players in the data set.
+The data did not encompass all players from 2020 nor all penalties for all the players in the data set.
