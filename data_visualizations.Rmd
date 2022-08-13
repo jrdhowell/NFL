@@ -195,7 +195,7 @@ df %>%
              outlier.size=1, notch=FALSE, color = "red" ) +
   scale_y_continuous(name="Base Contract", breaks=c(0, 10 * 10**6, 20 * 10**6, 30 * 10**6 ), labels=c("$0", "$10M", "$20M", "$30M")) +
   labs(title="Base Contract Value by Team (2000)", 
-       x = "Position") + 
+       x = "Team") + 
   theme(axis.text.x=element_text(color = "black", size=14, angle=45, vjust=.8, hjust=0.8), axis.text.y=element_text(size = 14), axis.title = element_text(size = 18), plot.title = element_text(size = 24)) 
 
 ```
