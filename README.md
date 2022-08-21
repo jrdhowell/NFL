@@ -5,6 +5,8 @@
 * Created data visualizations based on collected data
 * Created a statistical model that predicts the base contract value based on player stats
 * Used various statstical models to find the best fit
+* Exported the best model and created an API to bring the model into production
+* Created a script to run the API and to call the API
 
 ## Code and Resources Used
 **R Version:** 4.1.2 (2021-11-01) <br/>
