@@ -384,3 +384,13 @@ find_r (predict(fit.dt, train, method = "anova"), train$base, n)
 
 ```
 
+
+# save our best model
+
+```{r}
+
+
+saveRDS(fit.forest, "model.rds")
+
+```
+
