@@ -10,7 +10,7 @@
 
 ## Code and Resources Used
 **R Version:** 4.1.2 (2021-11-01) <br/>
-**Packages:** tidyverse, rvest, RSelenium, dplyr, stringr, ggplot2, corrplot, caret, janitor, randomForest, glmnet, rpart 
+**Packages:** tidyverse, rvest, RSelenium, dplyr, stringr, ggplot2, corrplot, caret, janitor, randomForest, glmnet, rpart, httr, plumber 
  
 
 ## Data Collection
