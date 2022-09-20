@@ -4,7 +4,7 @@
 * Cleaned and imputed missing data
 * Created data visualizations based on collected data
 * Created a statistical model that predicts the base contract value based on player stats
-* Used various statstical models to find the best fit
+* Used various statstical models to find the best fit (random forest, AOV, decision tree, lasso regression)
 * Exported the best model and created an API to bring the model into production
 * Created a script to run the API and to call the API
 
